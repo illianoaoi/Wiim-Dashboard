@@ -8,6 +8,7 @@ import {
   parseSubwoofer,
   parseOutput,
   computeLoopMode,
+  cleanMetaText,
 } from "./parse";
 import type {
   PlayerStatus,
@@ -53,6 +54,11 @@ export interface MetaInfo {
   sampleRate: number | null; // Hz
   bitDepth: number | null; // bits
   bitRate: number | null; // kbps
+  // Plain-text track metadata — used as a fallback when getPlayerStatusEx
+  // leaves Title/Artist empty (e.g. Bluetooth fills these via AVRCP instead).
+  title: string | null;
+  artist: string | null;
+  album: string | null;
 }
 
 const EMPTY_META: MetaInfo = {
@@ -61,6 +67,9 @@ const EMPTY_META: MetaInfo = {
   sampleRate: null,
   bitDepth: null,
   bitRate: null,
+  title: null,
+  artist: null,
+  album: null,
 };
 
 /** Album art URL + quality string + raw audio numbers from getMetaInfo. */
@@ -70,7 +79,9 @@ export async function fetchMetaInfo(ip: string): Promise<MetaInfo> {
     const raw = safeJson<{ metaData?: Record<string, unknown> }>(text);
     const m = raw?.metaData;
     if (!m) return EMPTY_META;
-    const art = typeof m.albumArtURI === "string" && m.albumArtURI ? m.albumArtURI : null;
+    const artRaw = typeof m.albumArtURI === "string" ? m.albumArtURI.trim() : "";
+    const artLower = artRaw.toLowerCase();
+    const art = artRaw && artLower !== "unknow" && artLower !== "unknown" ? artRaw : null;
     // Fields are strings; firmware sometimes reports the literal "unknow".
     const sr = Number(m.sampleRate);
     const bd = Number(m.bitDepth);
@@ -89,7 +100,16 @@ export async function fetchMetaInfo(ip: string): Promise<MetaInfo> {
       // kHz with up to 1 decimal, trimming a trailing ".0" (44.1, 48, 192).
       parts.push(`${(sampleRate / 1000).toFixed(1).replace(/\.0$/, "")} kHz`);
     }
-    return { albumArt: art, quality: parts.join(" · ") || null, sampleRate, bitDepth, bitRate };
+    return {
+      albumArt: art,
+      quality: parts.join(" · ") || null,
+      sampleRate,
+      bitDepth,
+      bitRate,
+      title: cleanMetaText(m.title),
+      artist: cleanMetaText(m.artist),
+      album: cleanMetaText(m.album),
+    };
   } catch {
     return EMPTY_META;
   }

@@ -52,8 +52,23 @@ export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceS
     const meta =
       metaR.status === "fulfilled"
         ? metaR.value
-        : { albumArt: null, quality: null, sampleRate: null, bitDepth: null, bitRate: null };
+        : {
+            albumArt: null,
+            quality: null,
+            sampleRate: null,
+            bitDepth: null,
+            bitRate: null,
+            title: null,
+            artist: null,
+            album: null,
+          };
     player.quality = meta.quality;
+    // Sources like Bluetooth leave Title/Artist empty in getPlayerStatusEx but
+    // provide them via getMetaInfo (AVRCP) — fall back to those (only when empty,
+    // so streaming is untouched).
+    player.title = player.title ?? meta.title;
+    player.artist = player.artist ?? meta.artist;
+    player.album = player.album ?? meta.album;
     // Detect the streaming service (mode + raw art host) and infer the format.
     player.service = detectService(player.sourceMode, meta.albumArt);
     player.audio = inferAudioFormat(

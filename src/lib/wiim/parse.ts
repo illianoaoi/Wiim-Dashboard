@@ -77,6 +77,16 @@ export function decodeMaybeHex(value: unknown): string | null {
   return decodeEntities(s);
 }
 
+/** Clean a plain-text getMetaInfo value: drop empty / WiiM "unknow(n)" placeholders, decode entities. */
+export function cleanMetaText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const s = value.trim();
+  if (!s) return null;
+  const lower = s.toLowerCase();
+  if (lower === "unknow" || lower === "unknown" || lower === "un_known" || lower === "none") return null;
+  return decodeEntities(s);
+}
+
 function num(v: unknown, fallback = 0): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;

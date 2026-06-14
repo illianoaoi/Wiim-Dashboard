@@ -1,7 +1,7 @@
 import "server-only";
 import { listDevices } from "@/lib/db/devices";
 import { getLastfm } from "@/lib/db/settings";
-import { fetchPlayerStatus } from "@/lib/wiim/commands";
+import { fetchPlayerStatus, fetchMetaInfo } from "@/lib/wiim/commands";
 import * as lastfm from "@/lib/lastfm/client";
 
 /**
@@ -70,9 +70,21 @@ async function tick(): Promise<void> {
 
 async function processDevice(id: string, host: string, creds: lastfm.LastfmCreds): Promise<void> {
   const p = await fetchPlayerStatus(host);
-  if (p.state !== "playing" || !p.title || !p.artist) return;
+  if (p.state !== "playing") return;
 
-  const key = `${p.artist} ${p.title} ${p.album ?? ""}`;
+  let title = p.title;
+  let artist = p.artist;
+  let album = p.album;
+  if (!title || !artist) {
+    // e.g. Bluetooth — metadata arrives via getMetaInfo (AVRCP), not getPlayerStatusEx.
+    const meta = await fetchMetaInfo(host);
+    title = title ?? meta.title;
+    artist = artist ?? meta.artist;
+    album = album ?? meta.album;
+  }
+  if (!title || !artist) return; // nothing to scrobble
+
+  const key = `${artist} ${title} ${album ?? ""}`;
   const nowSec = Math.floor(Date.now() / 1000);
   const prev = states.get(id);
 
@@ -86,13 +98,8 @@ async function processDevice(id: string, host: string, creds: lastfm.LastfmCreds
       scrobbled: false,
     });
     try {
-      await lastfm.updateNowPlaying(creds, {
-        artist: p.artist,
-        track: p.title,
-        album: p.album,
-        duration: p.duration,
-      });
-      log(`now playing → ${p.artist} — ${p.title}`);
+      await lastfm.updateNowPlaying(creds, { artist, track: title, album, duration: p.duration });
+      log(`now playing → ${artist} — ${title}`);
     } catch (e) {
       log("updateNowPlaying failed:", (e as Error)?.message ?? e);
     }
@@ -107,19 +114,25 @@ async function processDevice(id: string, host: string, creds: lastfm.LastfmCreds
   prev.position = p.position;
   if (p.duration > 0) prev.duration = p.duration;
 
-  if (!prev.scrobbled && prev.duration > 30) {
-    const threshold = Math.min(prev.duration / 2, 240);
-    if (p.position >= threshold) {
+  if (!prev.scrobbled) {
+    // Known duration (streaming): half the track or 4 min. Unknown duration
+    // (e.g. Bluetooth reports no position/length): fall back to wall-clock —
+    // ~90s of continuous play of the same track.
+    const eligible =
+      prev.duration > 30
+        ? p.position >= Math.min(prev.duration / 2, 240)
+        : nowSec - prev.startedAt >= 90;
+    if (eligible) {
       prev.scrobbled = true; // mark first to avoid double-submit on overlap
       try {
         await lastfm.scrobble(creds, {
-          artist: p.artist,
-          track: p.title,
-          album: p.album,
-          duration: prev.duration,
+          artist,
+          track: title,
+          album,
+          duration: prev.duration > 0 ? prev.duration : undefined,
           timestamp: prev.startedAt,
         });
-        log(`scrobbled ✓ ${p.artist} — ${p.title}`);
+        log(`scrobbled ✓ ${artist} — ${title}`);
       } catch (e) {
         prev.scrobbled = false; // retry next tick
         log("scrobble failed:", (e as Error)?.message ?? e);
