@@ -14,7 +14,9 @@ Now-playing & transport · EQ · sub-out · source/output switching · presets w
 
 <br/>
 
-<img src="docs/screenshot.png" alt="Wiim Dashboard — now playing, presets with artwork, source/output, sub-out and device info" width="480" />
+<img src="docs/screenshot.webp" alt="Wiim Dashboard — now playing with album-art theming, presets, equalizer" width="520" />
+<br/>
+<img src="docs/screenshot-2.webp" alt="Wiim Dashboard — source, output, sub-out and device info" width="520" />
 
 </div>
 
