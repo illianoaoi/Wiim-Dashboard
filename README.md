@@ -6,10 +6,11 @@
 
 Now-playing & transport · EQ · sub-out · source/output switching · presets with artwork · amp temperature — built for phone, tablet and desktop, packaged as a single Docker container, and hardened to sit safely behind your own reverse proxy.
 
+[![CI](https://github.com/illianoaoi/Wiim-Dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/illianoaoi/Wiim-Dashboard/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/License-MIT-7c5cff.svg)
 ![Next.js](https://img.shields.io/badge/Next.js-15-black.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6.svg)
-![Docker](https://img.shields.io/badge/Docker-ready-2496ed.svg)
+![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ed.svg)
 
 <br/>
 
@@ -110,6 +111,20 @@ docker compose up -d --build
 Open `http://<host>:39446` and you'll be taken to a first-run setup page.
 
 > **Testing over plain http (LAN IP)?** Set `COOKIE_SECURE=false` in `.env` so login cookies work without https. Behind https (recommended), leave it unset.
+
+### Run the prebuilt image (no build)
+
+Multi-arch images (`amd64` + `arm64`) are published to GHCR on every release:
+
+```bash
+docker run -d --name wiim-dashboard -p 39446:3000 \
+  -e AUTH_SECRET="$(openssl rand -base64 48)" \
+  -e COOKIE_SECURE=false \
+  -v wiim-data:/data \
+  ghcr.io/illianoaoi/wiim-dashboard:latest
+```
+
+Pin a version with `:0.1.0` instead of `:latest`. Behind https, drop `COOKIE_SECURE=false` and set `APP_ORIGIN`.
 
 ## First run
 

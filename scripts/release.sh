@@ -24,9 +24,10 @@ git diff --quiet && git diff --cached --quiet || { echo "❌ Commit or stash cha
 NEW=$(npm version "$BUMP" -m "release: %s")     # bumps package.json, commits, tags vX.Y.Z
 echo "→ bumped to $NEW"
 
+# Pushing the tag triggers .github/workflows/release.yml, which builds the
+# multi-arch Docker image (GHCR) and publishes the GitHub release.
 git push --follow-tags origin main
-gh release create "$NEW" --target main --title "$NEW" --generate-notes
 
-echo "✅ Released $NEW"
-echo "   https://github.com/illianoaoi/Wiim-Dashboard/releases/tag/$NEW"
-echo "   Rebuild & redeploy (docker compose up -d --build) so the in-app footer shows $NEW."
+echo "✅ Pushed $NEW — GitHub Actions will build the image + publish the release."
+echo "   Watch: https://github.com/illianoaoi/Wiim-Dashboard/actions"
+echo "   Pull:  docker pull ghcr.io/illianoaoi/wiim-dashboard:${NEW#v}"
