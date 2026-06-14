@@ -3,6 +3,14 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+- **Bluetooth now-playing** — track title/artist/album (via `getMetaInfo` / AVRCP, since `getPlayerStatusEx` leaves them empty for BT) plus the connected source device, e.g. "Bluetooth · @illiano-iPadPro" (from `getbtstatus`). Bluetooth scrobbling works too, using a wall-clock eligibility rule (BT reports no position/length).
+
+### Fixed
+- The **WiiM Vibelink Amp** is no longer listed as a supported device — it's a passive power amplifier with no network / HTTP API, so it can't be controlled.
+
 ## [0.2.0] — 2026-06-14
 
 A large update focused on the Now Playing experience and a full Last.fm integration.

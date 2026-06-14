@@ -94,6 +94,10 @@ Because there is no vendor field, the now-playing **service** is derived from `m
 
 Generic in-app network streaming is **mode `10`/`20`** (and a few neighbours) — there's no dedicated code, so the service is guessed by sniffing the `albumArtURI` host (tidal / qobuz / deezer / amazon / spotify / soundcloud / youtubemusic / tunein).
 
+#### Bluetooth (mode `41`)
+
+`getPlayerStatusEx` leaves `Title`/`Artist` empty for Bluetooth — the track metadata arrives via **`getMetaInfo`** (AVRCP). The connected source device (the casting phone/tablet) comes from **`getbtstatus`** → `a2dp_sink.name` (when `a2dp_sink.link_state` is `"connected"`); **`getbthistory`** lists previously-paired devices (`name`, `ad` = MAC, `ct` = connected flag).
+
 ## EQ
 
 | Purpose | Command |
