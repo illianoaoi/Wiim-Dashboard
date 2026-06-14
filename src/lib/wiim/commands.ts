@@ -7,8 +7,6 @@ import {
   parseDeviceInfo,
   parseSubwoofer,
   parseOutput,
-  parseEqStat,
-  parseEqList,
   computeLoopMode,
 } from "./parse";
 import type {
@@ -16,7 +14,6 @@ import type {
   DeviceInfo,
   SubwooferStatus,
   OutputStatus,
-  EqStatus,
 } from "./types";
 import { clamp } from "@/lib/utils";
 
@@ -145,37 +142,7 @@ export async function control(
   assertAccepted(text, command);
 }
 
-// EQ preset names never change for a device → cache to cut per-poll calls.
-const eqListCache = new Map<string, { at: number; list: string[] }>();
-const EQ_LIST_TTL_MS = 30_000;
-
-async function getEqList(ip: string): Promise<string[]> {
-  const c = eqListCache.get(ip);
-  if (c && Date.now() - c.at < EQ_LIST_TTL_MS) return c.list;
-  const list = parseEqList(await send(ip, Cmd.eqList).catch(() => ""));
-  if (list.length > 0) eqListCache.set(ip, { at: Date.now(), list });
-  return list;
-}
-
-/** EQ status, or null when the device has no EQ (so the card auto-hides). */
-export async function fetchEq(ip: string): Promise<EqStatus | null> {
-  const presets = await getEqList(ip);
-  if (presets.length === 0) return null;
-  const statText = await send(ip, Cmd.eqStat).catch(() => "");
-  return { enabled: parseEqStat(statText), current: null, presets };
-}
-
-export async function setEq(
-  ip: string,
-  action: { type: "on" } | { type: "off" } | { type: "load"; preset: string },
-): Promise<void> {
-  let command: string;
-  if (action.type === "on") command = Cmd.eqOn;
-  else if (action.type === "off") command = Cmd.eqOff;
-  else command = Cmd.eqLoad(action.preset);
-  const text = await send(ip, command);
-  assertAccepted(text, command);
-}
+// EQ lives in ./eq.ts (the per-source LV2 graphic + parametric API).
 
 export async function fetchSubwoofer(ip: string): Promise<SubwooferStatus | null> {
   try {

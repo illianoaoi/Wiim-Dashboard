@@ -16,6 +16,7 @@ import { DeviceInfoCard } from "./device-info-card";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { AppFooter } from "@/components/app-footer";
+import { SOURCES } from "@/lib/wiim/constants";
 
 const STORAGE_KEY = "wiim:selectedDevice";
 
@@ -69,6 +70,12 @@ export function Dashboard({ initialDevices }: { initialDevices: DeviceListItem[]
   const player = snap?.player ?? null;
   const online = snap ? snap.online : true;
   const did = selectedId!;
+  const eqSource =
+    player?.sourceKey === "wifi"
+      ? snap?.info?.network ?? "wifi"
+      : player?.sourceKey
+        ? SOURCES.find((s) => s.key === player.sourceKey)?.value ?? null
+        : null;
 
   return (
     <>
@@ -107,6 +114,9 @@ export function Dashboard({ initialDevices }: { initialDevices: DeviceListItem[]
               <PresetCard deviceId={did} presets={snap.presets} onChanged={refresh} />
             )}
 
+            {/* Full per-source Graphic + Parametric EQ (self-hides if unsupported) */}
+            <EqCard deviceId={did} initialSource={eqSource} />
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {player && caps?.sources && caps.sources.length > 0 && (
                 <SourceCard
@@ -125,7 +135,6 @@ export function Dashboard({ initialDevices }: { initialDevices: DeviceListItem[]
                   onChanged={refresh}
                 />
               )}
-              {snap.eq && <EqCard deviceId={did} eq={snap.eq} onChanged={refresh} />}
               {caps?.subwoofer && snap.sub && (
                 <SubCard deviceId={did} sub={snap.sub} onChanged={refresh} />
               )}

@@ -61,6 +61,11 @@ function num(v: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function nonZero(v: unknown): boolean {
+  const s = typeof v === "string" ? v.trim() : "";
+  return !!s && s !== "0.0.0.0";
+}
+
 /** Map the read-side `loop` field to {repeat, shuffle}. */
 function parseLoop(loop: number): { repeat: "off" | "one" | "all"; shuffle: boolean } {
   switch (loop) {
@@ -168,6 +173,7 @@ export function parseDeviceInfo(raw: Record<string, unknown>): DeviceInfo {
     ip: pickIp(raw),
     rssi: raw.RSSI != null && raw.RSSI !== "" ? num(raw.RSSI) : null,
     internet: String(raw.internet) === "1",
+    network: nonZero(raw.eth0) ? "ethernet" : nonZero(raw.apcli0) ? "wifi" : null,
     group: String(raw.group ?? "0"),
     temperatureCpu: tCpu != null && tCpu !== "" ? num(tCpu) : null,
     temperatureBoard: tBoard != null && tBoard !== "" ? num(tBoard) : null,

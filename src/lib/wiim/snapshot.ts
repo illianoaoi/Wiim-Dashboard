@@ -6,7 +6,6 @@ import {
   fetchMetaInfo,
   fetchSubwoofer,
   fetchOutput,
-  fetchEq,
   fetchPresets,
 } from "./commands";
 import type { DeviceSnapshot, DeviceCapabilities } from "./types";
@@ -21,15 +20,12 @@ export interface PollableDevice {
 export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceSnapshot> {
   const caps = device.capabilities;
 
-  const [infoR, playerR, metaR, subR, outR, eqR, presetsR] = await Promise.allSettled([
+  const [infoR, playerR, metaR, subR, outR, presetsR] = await Promise.allSettled([
     fetchDeviceInfo(device.ip),
     fetchPlayerStatus(device.ip),
     fetchMetaInfo(device.ip),
     caps?.subwoofer ? fetchSubwoofer(device.ip) : Promise.resolve(null),
     caps?.outputSwitch ? fetchOutput(device.ip) : Promise.resolve(null),
-    // EQ is self-detecting (returns null when unsupported), so fetch it
-    // regardless of cached capabilities — fixes EQ hidden on stale caps.
-    fetchEq(device.ip),
     caps?.presetCount ? fetchPresets(device.ip, caps.presetCount) : Promise.resolve(null),
   ]);
 
@@ -43,7 +39,6 @@ export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceS
       player: null,
       sub: null,
       output: null,
-      eq: null,
       presets: null,
       capabilities: caps,
     };
@@ -78,7 +73,6 @@ export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceS
     player,
     sub: subR.status === "fulfilled" ? subR.value : null,
     output: outR.status === "fulfilled" ? outR.value : null,
-    eq: eqR.status === "fulfilled" ? eqR.value : null,
     presets,
     capabilities: caps,
   };

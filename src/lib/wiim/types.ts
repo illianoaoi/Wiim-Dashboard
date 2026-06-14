@@ -35,6 +35,8 @@ export interface DeviceInfo {
   ip: string;
   rssi: number | null;
   internet: boolean;
+  /** active network interface (EQ uses this for the network source name). */
+  network: "ethernet" | "wifi" | null;
   group: string; // "0" master/standalone, "1" follower
   /** temperatures in °C when the model exposes them (amp models). */
   temperatureCpu: number | null;
@@ -60,10 +62,41 @@ export interface OutputStatus {
   audioCast: boolean;
 }
 
-export interface EqStatus {
+export type EqType = "graphic" | "parametric";
+
+export interface GraphicBand {
+  param: string; // e.g. "band31hz"
+  label: string; // e.g. "31"
+  gain: number; // dB
+}
+
+export interface ParametricBand {
+  letter: string; // a–j
+  mode: number; // -1 off, 0 low-shelf, 1 peak, 2 high-shelf
+  frequency: number; // Hz
+  q: number;
+  gain: number; // dB
+}
+
+export interface EqPresets {
+  custom: string[];
+  preset: string[];
+}
+
+export interface EqSourceState {
+  source: string; // EQ source_name (e.g. "optical")
   enabled: boolean;
-  current: string | null; // current preset name
-  presets: string[];
+  activeType: EqType | null; // which plugin is currently on for this source
+  graphic: { name: string; bands: GraphicBand[] };
+  parametric: { name: string; channelMode: string; bands: ParametricBand[] };
+}
+
+/** Full EQ payload for one source (fetched on demand, not in the poll). */
+export interface EqOverview {
+  supported: boolean; // false = firmware doesn't expose the v2 EQ API → hide card
+  sources: { key: string; label: string }[];
+  state: EqSourceState | null;
+  presets: { graphic: EqPresets; parametric: EqPresets };
 }
 
 export interface PresetItem {
@@ -99,7 +132,6 @@ export interface DeviceSnapshot {
   player: PlayerStatus | null;
   sub: SubwooferStatus | null;
   output: OutputStatus | null;
-  eq: EqStatus | null;
   presets: PresetItem[] | null;
   capabilities: DeviceCapabilities | null;
 }
