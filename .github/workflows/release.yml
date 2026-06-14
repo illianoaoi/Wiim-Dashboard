@@ -56,7 +56,21 @@ jobs:
     needs: docker
     steps:
       - uses: actions/checkout@v4
+
+      - name: Extract changelog section for this tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { flag=1; next }
+            /^## \[/ { if (flag) exit }
+            flag { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          echo "----- extracted release notes for $VERSION -----"
+          cat RELEASE_NOTES.md
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
+          # The changelog section is the body; GitHub's auto notes are appended.
+          body_path: RELEASE_NOTES.md
           generate_release_notes: true
