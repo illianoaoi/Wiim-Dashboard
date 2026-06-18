@@ -38,16 +38,41 @@ export async function GET(req: Request, { params }: Params) {
       url = new URL(meta.albumArt, `https://${r.device.host}`);
     }
 
-    // SSRF-guarded: private targets must be the device itself; public targets
-    // are fetched with normal TLS verification; connection pinned to checked IP.
-    const res = await wiimFetchRaw(url.toString(), {
-      deviceHost: r.device.host,
-      timeoutMs: 7000,
-    });
-    if (res.status >= 400 || !res.contentType.startsWith("image/")) return fallback();
+    let resStatus: number;
+    let resContentType: string;
+    let resBody: ArrayBuffer | Uint8Array | number[];
 
-    return new Response(new Uint8Array(res.body), {
-      headers: { "content-type": res.contentType, "cache-control": "private, max-age=60" },
+    // If the art is hosted on WiiM's official cloud CDN, bypass the local proxy
+    if (url.hostname === "wiimhome.com" || url.hostname.endsWith(".wiimhome.com")) {
+      const cloudRes = await fetch(url.toString(), { 
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+        signal: AbortSignal.timeout(7000) 
+      });
+      resStatus = cloudRes.status;
+      resContentType = cloudRes.headers.get("content-type") || "";
+      resBody = await cloudRes.arrayBuffer();
+
+      // FIX: Correct mislabeled cloud binary streams to proper image formats
+      if (resContentType.toLowerCase().includes("octet-stream") || !resContentType) {
+        if (url.pathname.endsWith(".png")) resContentType = "image/png";
+        else if (url.pathname.endsWith(".webp")) resContentType = "image/webp";
+        else resContentType = "image/jpeg"; // Default fallback for WiiM jpg files
+      }
+    } else {
+      // Fall back to original secure LAN proxy for local device-hosted artwork
+      const rawRes = await wiimFetchRaw(url.toString(), {
+        deviceHost: r.device.host,
+        timeoutMs: 7000,
+      });
+      resStatus = rawRes.status;
+      resContentType = rawRes.contentType;
+      resBody = rawRes.body;
+    }
+
+    if (resStatus >= 400 || !resContentType.startsWith("image/")) return fallback();
+
+    return new Response(new Uint8Array(resBody), {
+      headers: { "content-type": resContentType, "cache-control": "private, max-age=60" },
     });
   } catch {
     return fallback();
