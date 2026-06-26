@@ -3,6 +3,14 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.1] — 2026-06-26
+
+Reliability + distribution: gentler on the device, and now on Docker Hub too.
+
+### Changed
+- **Per-device request throttling** — the dashboard now caps how many `httpapi` calls hit a single device at once. A status poll fans out ~9 reads in parallel, and embedded LinkPlay hardware can drop or garble requests under that burst, causing intermittent command failures. Concurrency is capped at 4 per device by default; tune with `WIIM_DEVICE_CONCURRENCY` (set `1`–`2` for older / flaky units).
+- **Docker Hub images** — releases now publish to **Docker Hub** (`docker.io/illianoaoi/wiim-dashboard`) alongside GHCR, so Unraid (and other tools) can pull and auto-update from either registry.
+
 ## [0.3.0] — 2026-06-26
 
 A big feature drop — auto-imported input names, a fullscreen kiosk/wall-display mode with synced lyrics, a sleep timer, Last.fm listening stats, and richer device info (Wi-Fi signal, USB DAC).
