@@ -20,6 +20,7 @@ import {
   Disc3,
   Image as ImageIcon,
   Maximize2,
+  Mic2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -33,8 +34,9 @@ import { ServiceLogo } from "@/components/ui/service-logo";
 import { VinylDisc } from "./vinyl-disc";
 import { QualityPill } from "./quality-pill";
 import { KioskView } from "./kiosk-view";
+import { LyricsView } from "./lyrics-view";
 import { extractColor, type RGB } from "@/lib/client/use-album-color";
-import type { PlayerStatus, StreamService, AudioFormat } from "@/lib/wiim/types";
+import type { PlayerStatus, StreamService, AudioFormat, LyricLine } from "@/lib/wiim/types";
 
 export function NowPlayingCard({
   deviceId,
@@ -65,6 +67,11 @@ export function NowPlayingCard({
   const [loved, setLoved] = useState(false);
   const lovedReqRef = useRef("");
   const [kiosk, setKiosk] = useState(false);
+  const [kioskView, setKioskView] = useState<"vinyl" | "lyrics">("vinyl");
+  const [lyrics, setLyrics] = useState<{ synced: LyricLine[] | null; plain: string | null } | null>(
+    null,
+  );
+  const [lyricsLoading, setLyricsLoading] = useState(false);
 
   const isPlaying = player.state === "playing";
   const srcDef = player.sourceKey ? SOURCES.find((s) => s.key === player.sourceKey) : undefined;
@@ -94,13 +101,20 @@ export function NowPlayingCard({
   // to the vinyl view; the choice is remembered across sessions.
   const isPhono = player.sourceKey === "phono";
   const canVinyl = showArt || isPhono;
-  const [viewPref, setViewPref] = useState<"cover" | "vinyl" | null>(null);
+  const canLyrics = !!(player.title && player.artist);
+  const [viewPref, setViewPref] = useState<"cover" | "vinyl" | "lyrics" | null>(null);
   useEffect(() => {
     const v = typeof window !== "undefined" ? localStorage.getItem("wiim:npView") : null;
-    if (v === "cover" || v === "vinyl") setViewPref(v);
+    if (v === "cover" || v === "vinyl" || v === "lyrics") setViewPref(v);
   }, []);
-  const view: "cover" | "vinyl" = viewPref ?? (isPhono ? "vinyl" : "cover");
-  function setView(v: "cover" | "vinyl") {
+  const viewRaw: "cover" | "vinyl" | "lyrics" = viewPref ?? (isPhono ? "vinyl" : "cover");
+  const view: "cover" | "vinyl" | "lyrics" =
+    viewRaw === "lyrics" && !canLyrics
+      ? "cover"
+      : viewRaw === "vinyl" && !canVinyl
+        ? "cover"
+        : viewRaw;
+  function setView(v: "cover" | "vinyl" | "lyrics") {
     setViewPref(v);
     try {
       localStorage.setItem("wiim:npView", v);
@@ -146,6 +160,37 @@ export function NowPlayingCard({
         /* leave as not-loved */
       });
   }, [player.title, player.artist, canLove]);
+
+  // Fetch lyrics (LRCLIB) when the lyrics view is open (card or kiosk); per track.
+  const lyricsWanted =
+    (view === "lyrics" || (kiosk && kioskView === "lyrics")) && !!player.title && !!player.artist;
+  useEffect(() => {
+    if (!lyricsWanted) return;
+    const artist = player.artist;
+    const title = player.title;
+    if (!artist || !title) return;
+    let cancelled = false;
+    setLyricsLoading(true);
+    setLyrics(null);
+    apiGet<{ synced: LyricLine[] | null; plain: string | null }>(
+      `/api/lyrics?artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&album=${encodeURIComponent(player.album ?? "")}&duration=${player.duration || 0}`,
+    )
+      .then((r) => {
+        if (!cancelled) {
+          setLyrics(r);
+          setLyricsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLyrics({ synced: null, plain: null });
+          setLyricsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lyricsWanted, player.title, player.artist, player.album, player.duration]);
 
   // Tick position forward while playing.
   useEffect(() => {
@@ -205,6 +250,7 @@ export function NowPlayingCard({
   }
 
   function enterKiosk() {
+    setKioskView(view === "lyrics" ? "lyrics" : "vinyl");
     setKiosk(true);
     // Best-effort true fullscreen (desktop); the fixed overlay covers the rest.
     document.documentElement.requestFullscreen?.().catch(() => {});
@@ -249,7 +295,19 @@ export function NowPlayingCard({
       <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:gap-6">
         {/* Left column — artwork (cover or vinyl) + the view toggle */}
         <div className="flex shrink-0 flex-col items-center gap-3 sm:items-start">
-          {canVinyl && view === "vinyl" ? (
+          {view === "lyrics" && canLyrics ? (
+            <LyricsView
+              lines={lyrics?.synced ?? null}
+              plain={lyrics?.plain ?? null}
+              position={pos}
+              loading={lyricsLoading}
+              onSeek={(t) => {
+                const v = Math.round(t);
+                setPos(v);
+                if (hasDuration) void send({ action: "seek", value: v });
+              }}
+            />
+          ) : canVinyl && view === "vinyl" ? (
             <VinylDisc
               artSrc={showArt ? player.albumArt : null}
               spinning={isPlaying}
@@ -326,6 +384,20 @@ export function NowPlayingCard({
                   <Disc3 className="size-4" />
                 </button>
               </>
+            )}
+            {canLyrics && (
+              <button
+                type="button"
+                onClick={() => setView("lyrics")}
+                aria-label="Lyrics view"
+                aria-pressed={view === "lyrics"}
+                className={cn(
+                  "focus-ring grid size-7 place-items-center rounded-full transition",
+                  view === "lyrics" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Mic2 className="size-4" />
+              </button>
             )}
             <button
               type="button"
@@ -514,6 +586,18 @@ export function NowPlayingCard({
           onVolumeCommit={(v) => {
             setDraggingVol(false);
             void send({ action: "volume", value: v });
+          }}
+          view={kioskView}
+          onView={setKioskView}
+          canLyrics={canLyrics}
+          lines={lyrics?.synced ?? null}
+          plain={lyrics?.plain ?? null}
+          lyricsLoading={lyricsLoading}
+          position={pos}
+          onSeek={(t) => {
+            const v = Math.round(t);
+            setPos(v);
+            if (hasDuration) void send({ action: "seek", value: v });
           }}
           onExit={exitKiosk}
         />

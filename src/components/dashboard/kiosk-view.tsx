@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
+import { X, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Disc3, Mic2 } from "lucide-react";
 import { VinylDisc } from "./vinyl-disc";
+import { LyricsView } from "./lyrics-view";
 import { QualityPill } from "./quality-pill";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import type { PlayerStatus } from "@/lib/wiim/types";
+import type { PlayerStatus, LyricLine } from "@/lib/wiim/types";
 import type { RGB } from "@/lib/client/use-album-color";
 
 /**
@@ -29,6 +30,14 @@ export function KioskView({
   onVolume,
   onVolumeCommit,
   onExit,
+  view,
+  onView,
+  canLyrics,
+  lines,
+  plain,
+  lyricsLoading,
+  position,
+  onSeek,
 }: {
   player: PlayerStatus;
   artSrc: string | null;
@@ -42,6 +51,14 @@ export function KioskView({
   onVolume: (v: number) => void;
   onVolumeCommit: (v: number) => void;
   onExit: () => void;
+  view: "vinyl" | "lyrics";
+  onView: (v: "vinyl" | "lyrics") => void;
+  canLyrics: boolean;
+  lines: LyricLine[] | null;
+  plain: string | null;
+  lyricsLoading: boolean;
+  position: number;
+  onSeek: (t: number) => void;
 }) {
   const [idle, setIdle] = useState(false);
 
@@ -121,14 +138,58 @@ export function KioskView({
         <X className="size-5" />
       </button>
 
+      {canLyrics && (
+        <div
+          className={cn(
+            "absolute left-5 top-5 z-10 flex items-center gap-1 rounded-full bg-white/10 p-1 backdrop-blur transition",
+            idle && "pointer-events-none opacity-0",
+          )}
+        >
+          <button
+            onClick={() => onView("vinyl")}
+            aria-label="Vinyl"
+            aria-pressed={view === "vinyl"}
+            className={cn(
+              "focus-ring grid size-9 place-items-center rounded-full transition",
+              view === "vinyl" ? "bg-white/20 text-white" : "text-white/70 hover:text-white",
+            )}
+          >
+            <Disc3 className="size-5" />
+          </button>
+          <button
+            onClick={() => onView("lyrics")}
+            aria-label="Lyrics"
+            aria-pressed={view === "lyrics"}
+            className={cn(
+              "focus-ring grid size-9 place-items-center rounded-full transition",
+              view === "lyrics" ? "bg-white/20 text-white" : "text-white/70 hover:text-white",
+            )}
+          >
+            <Mic2 className="size-5" />
+          </button>
+        </div>
+      )}
+
       <div className="relative z-[1] flex flex-1 flex-col items-center justify-center gap-8 px-6 sm:flex-row sm:gap-16 sm:px-14">
-        <VinylDisc
-          artSrc={artSrc}
-          spinning={isPlaying}
-          rgb={rgb}
-          onColor={onColor}
-          sizeClass="size-[min(70vw,58vh)]"
-        />
+        {view === "lyrics" && canLyrics ? (
+          <LyricsView
+            lines={lines}
+            plain={plain}
+            position={position}
+            loading={lyricsLoading}
+            onSeek={onSeek}
+            large
+            sizeClass="h-[60vh] w-full max-w-[600px]"
+          />
+        ) : (
+          <VinylDisc
+            artSrc={artSrc}
+            spinning={isPlaying}
+            rgb={rgb}
+            onColor={onColor}
+            sizeClass="size-[min(70vw,58vh)]"
+          />
+        )}
 
         <div className="flex w-full max-w-md flex-col items-center sm:items-start">
           <QualityPill quality={player.quality} audio={player.audio} className="mb-4" />

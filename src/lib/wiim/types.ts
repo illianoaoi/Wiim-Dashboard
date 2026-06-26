@@ -23,6 +23,12 @@ export interface AudioFormat {
   bitRate: number | null; // kbps
 }
 
+/** A single timed lyric line (synced lyrics from LRCLIB). */
+export interface LyricLine {
+  t: number; // start time in seconds
+  text: string;
+}
+
 export interface PlayerStatus {
   state: PlaybackState;
   title: string | null;
