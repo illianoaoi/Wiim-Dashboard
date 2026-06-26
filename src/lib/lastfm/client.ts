@@ -142,3 +142,78 @@ export async function love(
 ): Promise<void> {
   await call(on ? "track.love" : "track.unlove", { artist, track }, creds, true);
 }
+
+export interface LastfmStatItem {
+  name: string;
+  artist?: string; // top tracks only
+  playcount: number;
+  url: string;
+}
+
+export interface LastfmStats {
+  topArtists: LastfmStatItem[];
+  topTracks: LastfmStatItem[];
+  totalScrobbles: number | null;
+}
+
+/**
+ * The user's top artists/tracks for a period + total scrobbles. These are
+ * public read methods (api_key + user, no signature). `period` is one of
+ * 7day / 1month / 3month / 6month / 12month / overall.
+ */
+export async function getStats(
+  apiKey: string,
+  username: string,
+  period: string,
+  limit = 8,
+): Promise<LastfmStats> {
+  const pub = async (method: string, extra: Record<string, string>) => {
+    const usp = new URLSearchParams({ method, api_key: apiKey, user: username, format: "json", ...extra });
+    const res = await fetch(`${ENDPOINT}?${usp.toString()}`, { signal: AbortSignal.timeout(7000) });
+    return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  };
+
+  const [ta, tt, info] = await Promise.allSettled([
+    pub("user.getTopArtists", { period, limit: String(limit) }),
+    pub("user.getTopTracks", { period, limit: String(limit) }),
+    pub("user.getInfo", {}),
+  ]);
+
+  const topArtists: LastfmStatItem[] =
+    ta.status === "fulfilled"
+      ? asArray((ta.value.topartists as { artist?: unknown } | undefined)?.artist).map((a) => ({
+          name: str(a.name),
+          playcount: num(a.playcount),
+          url: str(a.url),
+        }))
+      : [];
+
+  const topTracks: LastfmStatItem[] =
+    tt.status === "fulfilled"
+      ? asArray((tt.value.toptracks as { track?: unknown } | undefined)?.track).map((t) => ({
+          name: str(t.name),
+          artist: str((t.artist as { name?: unknown } | undefined)?.name) || undefined,
+          playcount: num(t.playcount),
+          url: str(t.url),
+        }))
+      : [];
+
+  let totalScrobbles: number | null = null;
+  if (info.status === "fulfilled") {
+    const pc = (info.value.user as { playcount?: unknown } | undefined)?.playcount;
+    totalScrobbles = pc != null ? num(pc) : null;
+  }
+
+  return { topArtists, topTracks, totalScrobbles };
+}
+
+function asArray(v: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(v) ? (v as Array<Record<string, unknown>>) : [];
+}
+function str(v: unknown): string {
+  return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+function num(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}

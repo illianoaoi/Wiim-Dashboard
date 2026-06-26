@@ -19,6 +19,7 @@ import { SubCard } from "./sub-card";
 import { TempCard } from "./temp-card";
 import { PresetCard } from "./preset-card";
 import { DeviceInfoCard } from "./device-info-card";
+import { LastfmStatsCard } from "./lastfm-stats-card";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { AppFooter } from "@/components/app-footer";
@@ -142,6 +143,8 @@ export function Dashboard({ initialDevices }: { initialDevices: DeviceListItem[]
 
             {/* Full per-source Graphic + Parametric EQ (self-hides if unsupported) */}
             {vis("eq") && <EqCard deviceId={did} initialSource={eqSource} />}
+
+            {settings?.lastfm?.connected && <LastfmStatsCard />}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {vis("source") && player && caps?.sources && caps.sources.length > 0 && (
