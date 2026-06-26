@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 export function EmptyState() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-      <div className="mb-5 grid size-20 place-items-center rounded-3xl bg-gradient-to-br from-primary/30 to-accent/20">
+      <div
+        className="mb-5 grid size-20 place-items-center rounded-3xl"
+        style={{ backgroundImage: "linear-gradient(to bottom right, hsl(var(--primary) / 0.3), hsl(var(--accent) / 0.2))" }}
+      >
         <Disc3 className="size-10 text-primary" />
       </div>
       <h2 className="text-lg font-semibold">No devices yet</h2>

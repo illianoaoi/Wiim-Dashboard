@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Play,
@@ -19,6 +19,7 @@ import {
   Gem,
   Disc3,
   Image as ImageIcon,
+  Maximize2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -30,6 +31,8 @@ import { SOURCES } from "@/lib/wiim/constants";
 import { DynIcon } from "@/components/ui/icon";
 import { ServiceLogo } from "@/components/ui/service-logo";
 import { VinylDisc } from "./vinyl-disc";
+import { QualityPill } from "./quality-pill";
+import { KioskView } from "./kiosk-view";
 import { extractColor, type RGB } from "@/lib/client/use-album-color";
 import type { PlayerStatus, StreamService, AudioFormat } from "@/lib/wiim/types";
 
@@ -59,6 +62,7 @@ export function NowPlayingCard({
   const loopFreezeUntil = useRef(0);
   const [loved, setLoved] = useState(false);
   const lovedReqRef = useRef("");
+  const [kiosk, setKiosk] = useState(false);
 
   const isPlaying = player.state === "playing";
   const srcDef = player.sourceKey ? SOURCES.find((s) => s.key === player.sourceKey) : undefined;
@@ -195,8 +199,30 @@ export function NowPlayingCard({
     }
   }
 
+  function enterKiosk() {
+    setKiosk(true);
+    // Best-effort true fullscreen (desktop); the fixed overlay covers the rest.
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  }
+  function exitKiosk() {
+    setKiosk(false);
+    if (typeof document !== "undefined" && document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  }
+
   return (
-    <Card className="relative overflow-hidden p-5 sm:p-6">
+    <>
+      <Card className="relative overflow-hidden p-5 sm:p-6">
+      {/* Default tint so the dark artwork / vinyl never blends into the card. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(120% 140% at 12% -10%, rgba(124,92,252,0.12), transparent 55%)",
+        }}
+      />
       {/* Album-art colour wash — crossfades on track change. */}
       <AnimatePresence>
         {rgb && (
@@ -267,34 +293,45 @@ export function NowPlayingCard({
             </div>
           )}
 
-          {canVinyl && (
-            <div className="flex items-center gap-1 rounded-full bg-white/8 p-1" role="group" aria-label="Artwork view">
-              <button
-                type="button"
-                onClick={() => setView("cover")}
-                aria-label="Cover view"
-                aria-pressed={view === "cover"}
-                className={cn(
-                  "focus-ring grid size-7 place-items-center rounded-full transition",
-                  view === "cover" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <ImageIcon className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setView("vinyl")}
-                aria-label="Vinyl view"
-                aria-pressed={view === "vinyl"}
-                className={cn(
-                  "focus-ring grid size-7 place-items-center rounded-full transition",
-                  view === "vinyl" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Disc3 className="size-4" />
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-1 self-center rounded-full bg-white/8 p-1">
+            {canVinyl && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setView("cover")}
+                  aria-label="Cover view"
+                  aria-pressed={view === "cover"}
+                  className={cn(
+                    "focus-ring grid size-7 place-items-center rounded-full transition",
+                    view === "cover" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <ImageIcon className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView("vinyl")}
+                  aria-label="Vinyl view"
+                  aria-pressed={view === "vinyl"}
+                  className={cn(
+                    "focus-ring grid size-7 place-items-center rounded-full transition",
+                    view === "vinyl" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Disc3 className="size-4" />
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={enterKiosk}
+              aria-label="Fullscreen"
+              title="Fullscreen"
+              className="focus-ring grid size-7 place-items-center rounded-full text-muted-foreground transition hover:bg-white/15 hover:text-foreground"
+            >
+              <Maximize2 className="size-4" />
+            </button>
+          </div>
         </div>
 
         {/* Meta + transport */}
@@ -308,7 +345,7 @@ export function NowPlayingCard({
               )}
               {sourceDisplay}
             </span>
-            {player.quality && <QualityPill quality={player.quality} />}
+            <QualityPill quality={player.quality} audio={player.audio} />
           </div>
           <div className="flex items-center gap-2">
             <h2 className="truncate text-xl font-semibold text-foreground">
@@ -386,7 +423,8 @@ export function NowPlayingCard({
                   void send({ action: "toggle" })
                 }
                 disabled={busy}
-                className="focus-ring grid size-16 place-items-center rounded-full bg-gradient-to-br from-primary to-accent text-white shadow-lg shadow-primary/30 transition active:scale-95"
+                style={{ backgroundImage: "linear-gradient(to bottom right, hsl(var(--primary)), hsl(var(--accent)))" }}
+                className="focus-ring grid size-16 place-items-center rounded-full text-white shadow-lg shadow-primary/30 transition active:scale-95"
                 aria-label={isPlaying ? "Pause" : "Play"}
               >
                 {isPlaying ? (
@@ -452,41 +490,30 @@ export function NowPlayingCard({
           )}
         </div>
       </div>
-    </Card>
-  );
-}
-
-/**
- * Bit-rate / format chip shown next to the source. Splits the quality string
- * ("902 kbps · 16-bit · 44.1 kHz") into segments divided by thin rules, with the
- * number emphasised and the unit muted — far more legible than purple-on-tint.
- */
-function QualityPill({ quality }: { quality: string }) {
-  const segments = quality
-    .split(/\s*·\s*/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => {
-      const m = s.match(/^([\d.]+)(.*)$/);
-      return m ? { value: m[1], unit: m[2].replace(/^[-\s]+/, "") } : { value: s, unit: "" };
-    });
-  if (segments.length === 0) return null;
-
-  const nodes: ReactNode[] = [];
-  segments.forEach((seg, i) => {
-    if (i > 0) nodes.push(<span key={`d${i}`} aria-hidden className="w-px self-stretch bg-white/15" />);
-    nodes.push(
-      <span key={`s${i}`} className="flex items-center px-2.5 py-0.5">
-        <span className="font-medium text-foreground">{seg.value}</span>
-        {seg.unit && <span className="ml-0.5 text-[11px] text-muted-foreground">{seg.unit}</span>}
-      </span>,
-    );
-  });
-
-  return (
-    <span className="inline-flex items-stretch overflow-hidden rounded-full border border-white/10 bg-black/30 text-xs tabular-nums backdrop-blur-sm">
-      {nodes}
-    </span>
+      </Card>
+      {kiosk && (
+        <KioskView
+          player={player}
+          artSrc={showArt ? player.albumArt : null}
+          rgb={rgb}
+          isPlaying={isPlaying}
+          sourceLabel={sourceDisplay}
+          vol={vol}
+          muted={player.muted}
+          onColor={setAlbumColor}
+          onSend={(b) => void send(b)}
+          onVolume={(v) => {
+            setDraggingVol(true);
+            setVol(v);
+          }}
+          onVolumeCommit={(v) => {
+            setDraggingVol(false);
+            void send({ action: "volume", value: v });
+          }}
+          onExit={exitKiosk}
+        />
+      )}
+    </>
   );
 }
 
@@ -507,11 +534,29 @@ function StreamInfoLine({ service, audio }: { service: StreamService; audio: Aud
           : null;
   // Graded "metal" styling so quality reads at a glance:
   // gold (hi-res, 24-bit) → silver (lossless, 16-bit/CD) → grey (lossy).
+  // Gradients are inline (not Tailwind bg-gradient-*) so the gold/silver text
+  // renders on iOS/iPad Safari, which doesn't parse Tailwind's gradient vars.
+  const tierTextStyle: CSSProperties | undefined =
+    tier === "hires"
+      ? {
+          backgroundImage: "linear-gradient(to right, #fde68a, #fde047, #f59e0b)",
+          WebkitBackgroundClip: "text",
+          backgroundClip: "text",
+          color: "transparent",
+        }
+      : tier === "lossless"
+        ? {
+            backgroundImage: "linear-gradient(to right, #f1f5f9, #94a3b8)",
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            color: "transparent",
+          }
+        : undefined;
   const tierTextClass =
     tier === "hires"
-      ? "bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-500 bg-clip-text font-bold text-transparent drop-shadow-[0_0_6px_rgba(251,191,36,0.25)]"
+      ? "font-bold drop-shadow-[0_0_6px_rgba(251,191,36,0.25)]"
       : tier === "lossless"
-        ? "bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text font-semibold text-transparent"
+        ? "font-semibold"
         : "text-muted-foreground";
 
   const parts: ReactNode[] = [
@@ -533,7 +578,9 @@ function StreamInfoLine({ service, audio }: { service: StreamService; audio: Aud
     parts.push(
       <span key="tier" className="inline-flex items-center gap-1 uppercase tracking-wide">
         {tier === "hires" && <Gem className="size-3.5 shrink-0 text-amber-300" />}
-        <span className={tierTextClass}>{tierLabel}</span>
+        <span className={tierTextClass} style={tierTextStyle}>
+          {tierLabel}
+        </span>
       </span>,
     );
 

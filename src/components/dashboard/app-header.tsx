@@ -31,7 +31,10 @@ export function AppHeader({
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-4">
-        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-md shadow-primary/30">
+        <div
+          className="grid size-9 shrink-0 place-items-center rounded-xl shadow-md shadow-primary/30"
+          style={{ backgroundImage: "linear-gradient(to bottom right, hsl(var(--primary)), hsl(var(--accent)))" }}
+        >
           <Disc3 className="size-5 text-white" />
         </div>
 

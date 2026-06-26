@@ -69,7 +69,10 @@ export function PresetCard({
                     draggable={false}
                     className="absolute inset-0 size-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/20" />
+                  <div
+                    className="absolute inset-0"
+                    style={{ backgroundImage: "linear-gradient(to top, rgba(0,0,0,0.85), transparent, rgba(0,0,0,0.2))" }}
+                  />
                   <span className="absolute left-1.5 top-1.5 grid size-5 place-items-center rounded-md bg-black/55 text-[10px] font-semibold text-white">
                     {p.index}
                   </span>
