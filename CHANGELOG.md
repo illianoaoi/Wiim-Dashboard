@@ -3,6 +3,11 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.4] — 2026-06-27
+
+### Fixed
+- **USB (and other) inputs missing from the source switcher** — WiiM's `plm_support` bitmask doesn't reliably flag every input (notably the Ultra's USB drive), so some sources were dropped from the dashboard even though the device handles them. USB is now offered on the Ultra, and the **currently-playing source is always kept selectable** — so whatever's active never disappears from the switcher. (After updating, hit **Refresh** on the device on the Devices page to re-detect its inputs.)
+
 ## [0.3.3] — 2026-06-27
 
 Easier self-hosting — Unraid support and bind-mount-friendly data directories.
