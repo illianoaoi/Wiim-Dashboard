@@ -113,6 +113,8 @@ The Next.js server is the **only** component that talks to the device. The brows
 
 ## Quick start (Docker)
 
+> 🆕 **New to Docker, or not very technical?** Follow the **[dead-simple, step-by-step install guide →](docs/EASY-INSTALL.md)** — no command-line experience needed. The rest of this section assumes some familiarity.
+
 **Prerequisites:** Docker + Docker Compose, and your WiiM device(s) reachable on the LAN.
 
 ```bash
