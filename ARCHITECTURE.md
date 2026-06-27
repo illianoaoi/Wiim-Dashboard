@@ -112,4 +112,4 @@ See [SECURITY.md](SECURITY.md). In short: device isolation + SSRF guard, session
 
 ## Deployment
 
-Multi-stage `Dockerfile` produces a Next.js **standalone** server. Native modules (`better-sqlite3`, `@node-rs/argon2`) are kept external and copied explicitly. Runtime data lives in the **named volume** `wiim-data` (correct ownership for the non-root container user). A reverse proxy terminates TLS in front.
+Multi-stage `Dockerfile` produces a Next.js **standalone** server. Native modules (`better-sqlite3`, `@node-rs/argon2`) are kept external and copied explicitly. The container's entrypoint fixes the data directory's ownership — so a bind-mount (e.g. Unraid appdata) works as well as the default **named volume** `wiim-data` — then drops to a **non-root** user (uid 1001) via `gosu`; the app never runs as root. A reverse proxy terminates TLS in front.

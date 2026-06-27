@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>WiiM-Dashboard</Name>
+  <Repository>illianoaoi/wiim-dashboard:latest</Repository>
+  <Registry>https://hub.docker.com/r/illianoaoi/wiim-dashboard</Registry>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/illianoaoi/Wiim-Dashboard/issues</Support>
+  <Project>https://github.com/illianoaoi/Wiim-Dashboard</Project>
+  <Overview>A self-hosted, dark-themed web dashboard to monitor and control your WiiM / LinkPlay audio devices — now playing, EQ, sub-out, source/output switching, presets and more. It runs on your server and talks to the device over your LAN (it never modifies the device). After it starts: open the WebUI, create your admin login, then add your WiiM by its IP address. The CA Auto Update Applications plugin keeps it current.</Overview>
+  <Category>MediaApp:Music HomeAutomation: Network:Web</Category>
+  <WebUI>http://[IP]:[PORT:39446]/</WebUI>
+  <Icon>https://raw.githubusercontent.com/illianoaoi/Wiim-Dashboard/main/public/icon.svg</Icon>
+  <Config Name="WebUI Port" Target="3000" Default="39446" Mode="tcp" Description="Host port for the dashboard web UI." Type="Port" Display="always" Required="true" Mask="false">39446</Config>
+  <Config Name="AUTH_SECRET" Target="AUTH_SECRET" Default="" Mode="" Description="REQUIRED. A long random secret (32+ chars) that signs login sessions. Generate one, e.g. on a terminal: openssl rand -base64 48" Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="COOKIE_SECURE" Target="COOKIE_SECURE" Default="false" Mode="" Description="Keep false for plain-http access on your LAN (the Unraid default). Set true only when serving over HTTPS through a reverse proxy." Type="Variable" Display="always" Required="false" Mask="false">false</Config>
+  <Config Name="APP_ORIGIN" Target="APP_ORIGIN" Default="" Mode="" Description="Optional. Public https origin (e.g. https://wiim.example.com) when behind a reverse proxy — enables strict CSRF origin checks." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="App Data" Target="/data" Default="/mnt/user/appdata/wiim-dashboard" Mode="rw" Description="Stores the SQLite database and runtime data. The container fixes ownership automatically on start, so a normal appdata path works." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/wiim-dashboard</Config>
+</Container>
