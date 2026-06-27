@@ -3,6 +3,11 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.5] — 2026-06-27
+
+### Fixed
+- **HDMI ARC missing from the source switcher on the Ultra** — same root cause as the USB input fixed in 0.3.4: WiiM's `plm_support` bitmask doesn't reliably flag the Ultra's HDMI ARC, so it's now offered explicitly. (After updating, hit **Refresh** on the device to re-detect its inputs.)
+
 ## [0.3.4] — 2026-06-27
 
 ### Fixed
