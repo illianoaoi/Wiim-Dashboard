@@ -3,6 +3,16 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.7] — 2026-07-13
+
+Fixes from community bug reports (thanks [@gthibo](https://github.com/gthibo)).
+
+### Fixed
+- **Parametric EQ in L/R mode showed flat, default bands** ([#7](https://github.com/illianoaoi/Wiim-Dashboard/issues/7)) — when the EQ is put in L/R channel mode from the WiiM app, the device returns per-channel bands (`EQBandL`/`EQBandR`) instead of a flat array, which the dashboard didn't read, so every band showed its default. It now reads both channels and adds a **Left/Right view toggle**. L/R editing stays read-only for now (adjust it in the WiiM app) — the per-channel write path needs a device round-trip to confirm it's safe first.
+- **Sub-Out card appeared on devices with no sub-out hardware** ([#6](https://github.com/illianoaoi/Wiim-Dashboard/issues/6)) — subwoofer support was inferred from `getSubLPF` fields that *every* LinkPlay device returns. It's now keyed on hardware-only fields (`plugged` / `delay_main_sub` / `linein_delay`). After updating, hit **Refresh** on the Devices page to re-detect an already-added device.
+- **Plex / DLNA casts showed a bare "Network" label and the wrong play/pause state** ([#4](https://github.com/illianoaoi/Wiim-Dashboard/issues/4)) — these push sessions carry a `vendor` field the dashboard ignored (so no service name or format) and report a permanently-stuck "stop" while the track advances. The dashboard now names the casting app (Plex, Roon, …), surfaces its format, and derives play/stop from track progress — without disturbing multiroom followers. (Album art for cross-host Plex servers is a known follow-up.)
+- **"No lyrics found" for real, popular tracks** ([#5](https://github.com/illianoaoi/Wiim-Dashboard/issues/5)) — LRCLIB's exact-match lookup 404s on any album-name difference (deluxe / single / regional titles). The dashboard now falls back to a search, uses a longer timeout for the (genuinely slow) LRCLIB service, and no longer caches a transient failure as a permanent "no lyrics".
+
 ## [0.3.6] — 2026-06-27
 
 ### Fixed
