@@ -14,7 +14,7 @@ import { useConfirm, usePrompt } from "@/components/modal";
 import { apiGet, apiSend, ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/utils";
 import { GRAPHIC_GAIN, PEQ_RANGE, PEQ_MODES } from "@/lib/wiim/eq-constants";
-import type { EqOverview, EqType, ParametricBand } from "@/lib/wiim/types";
+import type { EqOverview, EqType, ParametricBand, EqParametricState } from "@/lib/wiim/types";
 
 type Overview = EqOverview & { source: string };
 
@@ -114,7 +114,7 @@ export function EqCard({ deviceId, initialSource }: { deviceId: string; initialS
         {subTab === "graphic" ? (
           <GraphicPanel bands={st.graphic.bands} source={st.source} send={send} />
         ) : (
-          <ParametricPanel bands={st.parametric.bands} source={st.source} send={send} />
+          <ParametricPanel parametric={st.parametric} source={st.source} send={send} />
         )}
       </div>
 
@@ -185,16 +185,44 @@ function GraphicPanel({
 // --- Parametric (10 bands: freq / Q / gain / type) --------------------------
 
 function ParametricPanel({
-  bands,
+  parametric,
   source,
   send,
 }: {
-  bands: ParametricBand[];
+  parametric: EqParametricState;
   source: string;
   send: (b: Record<string, unknown>) => Promise<void>;
 }) {
+  const lr = parametric.channelMode === "lr";
+  const [chan, setChan] = useState<"left" | "right">("left");
+  // L/R editing needs a per-channel write path that isn't verified yet (a
+  // single-channel write may wipe the other channel on some firmware), so in
+  // L/R mode we show the real per-channel values read-only and defer edits.
+  const bands = lr ? (parametric.bands[chan] ?? []) : (parametric.bands.stereo ?? []);
+
   return (
     <div className="space-y-2 px-5 pt-4">
+      {lr && (
+        <>
+          <div className="flex rounded-lg border border-border p-1">
+            {(["left", "right"] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => setChan(c)}
+                className={cn(
+                  "flex-1 rounded-md py-1 text-xs font-medium capitalize transition",
+                  chan === c ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          <p className="px-1 text-[11px] leading-snug text-muted-foreground">
+            This EQ is in L/R mode — values are shown read-only here; adjust it in the WiiM app.
+          </p>
+        </>
+      )}
       <div className="grid grid-cols-[1.6rem_1fr_3rem_minmax(5rem,1fr)_2.6rem] items-center gap-2 px-1 text-[11px] uppercase tracking-wide text-muted-foreground">
         <span>Bd</span>
         <span>Type · Freq</span>
@@ -203,7 +231,9 @@ function ParametricPanel({
         <span className="text-right">dB</span>
       </div>
       {bands.map((b) => (
-        <PeqRow key={b.letter} band={b} source={source} send={send} />
+        // key by channel too: the freq/Q inputs are uncontrolled (defaultValue),
+        // so a fresh mount is what makes them show the other channel's values.
+        <PeqRow key={`${lr ? chan : "s"}-${b.letter}`} band={b} source={source} send={send} readOnly={lr} />
       ))}
     </div>
   );
@@ -213,10 +243,12 @@ function PeqRow({
   band,
   source,
   send,
+  readOnly,
 }: {
   band: ParametricBand;
   source: string;
   send: (b: Record<string, unknown>) => Promise<void>;
+  readOnly?: boolean;
 }) {
   const [gain, setGain] = useState(band.gain);
   const [dragging, setDragging] = useState(false);
@@ -241,8 +273,11 @@ function PeqRow({
 
       <div className="flex items-center gap-1.5">
         <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
-            <button className="focus-ring rounded-lg bg-white/[0.04] px-2 py-1 text-xs hover:bg-white/[0.08]">
+          <DropdownMenu.Trigger asChild disabled={readOnly}>
+            <button
+              disabled={readOnly}
+              className="focus-ring rounded-lg bg-white/[0.04] px-2 py-1 text-xs enabled:hover:bg-white/[0.08] disabled:cursor-default"
+            >
               {modeLabel}
             </button>
           </DropdownMenu.Trigger>
@@ -265,11 +300,12 @@ function PeqRow({
           defaultValue={Math.round(band.frequency)}
           min={PEQ_RANGE.freqMin}
           max={PEQ_RANGE.freqMax}
+          disabled={readOnly}
           onBlur={(e) => {
             const f = Number(e.target.value);
             if (Number.isFinite(f) && f !== band.frequency) set({ frequency: f });
           }}
-          className="h-7 w-16 rounded-lg border border-border bg-input px-1.5 text-center text-xs tabular-nums focus:border-primary focus:outline-none"
+          className="h-7 w-16 rounded-lg border border-border bg-input px-1.5 text-center text-xs tabular-nums focus:border-primary focus:outline-none disabled:opacity-60"
           aria-label={`Band ${band.letter} frequency`}
         />
         <span className="text-[10px] text-muted-foreground">Hz</span>
@@ -279,11 +315,12 @@ function PeqRow({
         type="number"
         step={0.1}
         defaultValue={band.q}
+        disabled={readOnly}
         onBlur={(e) => {
           const q = Number(e.target.value);
           if (Number.isFinite(q) && q !== band.q) set({ q });
         }}
-        className="h-7 w-full rounded-lg border border-border bg-input px-1.5 text-center text-xs tabular-nums focus:border-primary focus:outline-none"
+        className="h-7 w-full rounded-lg border border-border bg-input px-1.5 text-center text-xs tabular-nums focus:border-primary focus:outline-none disabled:opacity-60"
         aria-label={`Band ${band.letter} Q`}
       />
 
@@ -292,7 +329,7 @@ function PeqRow({
         min={PEQ_RANGE.gainMin}
         max={PEQ_RANGE.gainMax}
         step={0.5}
-        disabled={off}
+        disabled={off || readOnly}
         onChange={(v) => {
           setDragging(true);
           setGain(v);

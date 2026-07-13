@@ -13,9 +13,12 @@ import type {
   EqType,
   GraphicBand,
   ParametricBand,
+  EqParametricState,
   EqPresets,
   EqSourceState,
 } from "./types";
+
+type EqBandArray = { param_name?: string; value?: number }[];
 
 interface RawEq {
   status?: string;
@@ -23,7 +26,9 @@ interface RawEq {
   Name?: string;
   pluginURI?: string;
   channelMode?: string;
-  EQBand?: { param_name?: string; value?: number }[];
+  EQBand?: EqBandArray; // stereo mode
+  EQBandL?: EqBandArray; // L/R mode
+  EQBandR?: EqBandArray; // L/R mode
 }
 
 /** Run an EQ command; return parsed JSON, or null when the device rejects it. */
@@ -42,39 +47,44 @@ async function eqCall(ip: string, cmd: string, timeoutMs = 6000): Promise<RawEq 
   return j;
 }
 
-function bandMap(raw: RawEq): Map<string, number> {
+function bandMapFrom(arr: EqBandArray | undefined): Map<string, number> {
   const m = new Map<string, number>();
-  for (const b of raw.EQBand ?? []) {
+  for (const b of arr ?? []) {
     if (b.param_name != null && typeof b.value === "number") m.set(b.param_name, b.value);
   }
   return m;
 }
 
 function parseGraphic(raw: RawEq): { name: string; bands: GraphicBand[] } {
-  const m = bandMap(raw);
+  const m = bandMapFrom(raw.EQBand);
   return {
     name: raw.Name ?? "",
     bands: GRAPHIC_BANDS.map((b) => ({ param: b.param, label: b.label, gain: m.get(b.param) ?? 0 })),
   };
 }
 
-function parseParametric(raw: RawEq): {
-  name: string;
-  channelMode: string;
-  bands: ParametricBand[];
-} {
-  const m = bandMap(raw);
-  return {
-    name: raw.Name ?? "",
-    channelMode: raw.channelMode ?? CHANNEL_MODE_STEREO,
-    bands: PEQ_LETTERS.map((l) => ({
-      letter: l,
-      mode: Math.round(m.get(`${l}_mode`) ?? 1),
-      frequency: m.get(`${l}_freq`) ?? PEQ_DEFAULT_FREQ[l] ?? 1000,
-      q: m.get(`${l}_q`) ?? 0.25,
-      gain: m.get(`${l}_gain`) ?? 0,
-    })),
-  };
+function toParametricBands(arr: EqBandArray | undefined): ParametricBand[] {
+  const m = bandMapFrom(arr);
+  return PEQ_LETTERS.map((l) => ({
+    letter: l,
+    mode: Math.round(m.get(`${l}_mode`) ?? 1),
+    frequency: m.get(`${l}_freq`) ?? PEQ_DEFAULT_FREQ[l] ?? 1000,
+    q: m.get(`${l}_q`) ?? 0.25,
+    gain: m.get(`${l}_gain`) ?? 0,
+  }));
+}
+
+function parseParametric(raw: RawEq): EqParametricState {
+  const name = raw.Name ?? "";
+  // L/R mode (set from the WiiM app) returns EQBandL/EQBandR, not a flat EQBand.
+  if (raw.channelMode === "L/R") {
+    return {
+      name,
+      channelMode: "lr",
+      bands: { left: toParametricBands(raw.EQBandL), right: toParametricBands(raw.EQBandR) },
+    };
+  }
+  return { name, channelMode: "stereo", bands: { stereo: toParametricBands(raw.EQBand) } };
 }
 
 function isOn(raw: RawEq | null): boolean {
@@ -103,9 +113,7 @@ export async function getSourceState(ip: string, source: string): Promise<EqSour
     enabled: graphicOn || parametricOn,
     activeType,
     graphic: g ? parseGraphic(g) : { name: "", bands: parseGraphic({}).bands },
-    parametric: p
-      ? parseParametric(p)
-      : { name: "", channelMode: CHANNEL_MODE_STEREO, bands: parseParametric({}).bands },
+    parametric: p ? parseParametric(p) : parseParametric({}),
   };
 }
 

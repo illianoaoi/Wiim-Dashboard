@@ -109,6 +109,22 @@ export interface ParametricBand {
   gain: number; // dB
 }
 
+/** Which PEQ channel a band set belongs to. */
+export type PeqChannel = "stereo" | "left" | "right";
+
+/**
+ * Parametric EQ for one source. The device runs either a single "stereo" band
+ * set or independent "left"/"right" sets — L/R mode is chosen from the WiiM app
+ * and takes precedence. In L/R mode the raw read returns EQBandL/EQBandR instead
+ * of a flat EQBand, so a stereo-only parser would see empty bands (flat preset).
+ */
+export interface EqParametricState {
+  name: string;
+  channelMode: "stereo" | "lr";
+  // stereo → only `stereo` is populated; lr → `left` + `right`.
+  bands: Partial<Record<PeqChannel, ParametricBand[]>>;
+}
+
 export interface EqPresets {
   custom: string[];
   preset: string[];
@@ -119,7 +135,7 @@ export interface EqSourceState {
   enabled: boolean;
   activeType: EqType | null; // which plugin is currently on for this source
   graphic: { name: string; bands: GraphicBand[] };
-  parametric: { name: string; channelMode: string; bands: ParametricBand[] };
+  parametric: EqParametricState;
 }
 
 /** Full EQ payload for one source (fetched on demand, not in the poll). */
