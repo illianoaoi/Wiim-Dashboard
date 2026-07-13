@@ -68,9 +68,15 @@ export async function detectCapabilities(
   const equalizer = eqSupportFlag || parseEqList(eqListText).length > 0;
 
   const subJson = safeJson<Record<string, unknown>>(subText);
+  // Every LinkPlay device answers getSubLPF with a default template that carries
+  // `status`/`level`/`cross`… — so those fields DON'T imply sub-out hardware and
+  // false-positive the Sub-Out card on non-sub devices. Real sub hardware also
+  // returns `plugged` (+ delay_main_sub / linein_delay); key the capability on
+  // the presence of any of those. (Cached in the devices table — hit Refresh to
+  // re-detect an already-added device.)
   const subwoofer =
     !!subJson &&
-    (subJson.level != null || subJson.status != null) &&
+    (subJson.plugged != null || subJson.delay_main_sub != null || subJson.linein_delay != null) &&
     !subText.toLowerCase().includes("unknown command");
 
   const outJson = safeJson<Record<string, unknown>>(outText);
