@@ -157,11 +157,22 @@ export function parsePlayerStatus(raw: Record<string, unknown>): PlayerStatus {
 
   const sourceMode = String(raw.mode ?? "0");
   const sourceLabel = PLAYING_MODE_LABEL[sourceMode] ?? "Unknown";
-  let sourceKey: string | null = null;
+  // Casting app/vendor (e.g. "Plex", "Roon") — WiiM populates this for DLNA/UPnP
+  // push sessions, which land on odd mode codes with no matching physical input.
+  const vendor = cleanMetaText(raw.vendor);
+  const physicalSourceKey = SOURCES.find((s) => s.modes.includes(sourceMode))?.key ?? null;
+  let sourceKey: string | null;
   if (NETWORK_PLAY_MODES.has(sourceMode)) {
     sourceKey = "wifi";
+  } else if (vendor && !physicalSourceKey) {
+    // A vendor push on a mode that isn't a known physical input is a network/
+    // cast session (Plex/BubbleUPnP/…) — treat it as the network source so art,
+    // stream-info and service detection all light up (they gate on sourceKey /
+    // service being non-null). Guarded by !physicalSourceKey so a vendor
+    // reported alongside a real physical input is never mis-flagged as network.
+    sourceKey = "wifi";
   } else {
-    sourceKey = SOURCES.find((s) => s.modes.includes(sourceMode))?.key ?? null;
+    sourceKey = physicalSourceKey;
   }
 
   const { repeat, shuffle } = parseLoop(num(raw.loop, 0));
@@ -179,6 +190,7 @@ export function parsePlayerStatus(raw: Record<string, unknown>): PlayerStatus {
     sourceMode,
     sourceLabel,
     sourceKey,
+    vendor,
     repeat,
     shuffle,
     eqIndex: num(raw.eq, 0),

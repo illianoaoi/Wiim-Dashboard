@@ -45,6 +45,8 @@ export interface PlayerStatus {
   sourceLabel: string;
   /** which SOURCES.key this maps to, when identifiable. */
   sourceKey: string | null;
+  /** casting app/vendor for DLNA/UPnP push sessions (e.g. "Plex", "Roon"); null otherwise. */
+  vendor: string | null;
   repeat: "off" | "one" | "all";
   shuffle: boolean;
   /** numeric EQ preset index from player status (presentational only). */

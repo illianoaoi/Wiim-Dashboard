@@ -16,6 +16,18 @@ import { detectService, inferAudioFormat } from "./now-playing-info";
 import { getSleep } from "@/lib/sleep/timer";
 import type { DeviceSnapshot, DeviceCapabilities } from "./types";
 
+/**
+ * Poll-delta transport memory for vendor-push sources (Plex/DLNA), keyed by
+ * device id. These sessions report a permanently-stale `status:stop` while
+ * `curpos` still advances, so a single snapshot can't tell play from stop — we
+ * compare position across consecutive polls instead: advanced ⇒ playing, frozen
+ * ⇒ stopped. Inherently one poll behind, and can't tell stop from pause (both
+ * freeze) — both accepted. Only consulted for the vendor-push case; every other
+ * source keeps the device's own reported state.
+ */
+const vendorTransport = new Map<string, { position: number; at: number; playing: boolean }>();
+const VENDOR_TRANSPORT_TTL_MS = 60_000;
+
 export interface PollableDevice {
   id: string;
   ip: string;
@@ -79,8 +91,33 @@ export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceS
     player.artist = player.artist ?? meta.artist;
     player.album = player.album ?? meta.album;
     if (player.title) player.title = tidyTrackTitle(player.title);
-    // Detect the streaming service (mode + raw art host) and infer the format.
-    player.service = detectService(player.sourceMode, meta.albumArt);
+    // Detect the streaming service (mode + raw art host + vendor). `vendor` +
+    // `sourceKey` let DLNA/UPnP push sessions be named and treated as a network
+    // source even when their mode isn't a known code, while keeping a stale
+    // vendor string off a real physical input.
+    player.service = detectService(player.sourceMode, meta.albumArt, player.vendor, player.sourceKey);
+
+    // Poll-delta transport for the vendor-push quirk (e.g. Plex cast on mode
+    // 99): the device's `status` sticks at "stop" while `curpos` advances, so
+    // derive play/stop from whether `position` moved since the previous poll.
+    // Guards: only a vendor push on mode 99, and NOT a multiroom follower
+    // (group "1" also reports mode 99 but keeps an honest status incl. pause,
+    // which this position heuristic can't represent — leave it untouched).
+    if (player.vendor && player.sourceMode === "99" && info?.group !== "1") {
+      const now = Date.now();
+      const prev = vendorTransport.get(device.id);
+      const fresh = prev && now - prev.at < VENDOR_TRANSPORT_TTL_MS;
+      let playing: boolean;
+      if (!fresh) {
+        playing = true; // first sight / stale memory → assume playing (no freeze on a fresh cast)
+      } else if (now - prev!.at < 1500) {
+        playing = prev!.playing; // polled too soon: position is second-resolution, keep the last verdict
+      } else {
+        playing = player.position > prev!.position;
+      }
+      vendorTransport.set(device.id, { position: player.position, at: now, playing });
+      player.state = playing ? "playing" : "stopped";
+    }
     player.audio = inferAudioFormat(
       player.service?.key ?? null,
       meta.sampleRate,

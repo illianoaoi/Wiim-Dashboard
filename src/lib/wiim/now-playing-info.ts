@@ -51,8 +51,31 @@ const SERVICE_BY_HOST: { match: string; def: SvcDef }[] = [
   { match: "radiotime", def: { key: "tunein", name: "TuneIn", logo: "tunein" } },
 ];
 
-/** Resolve the streaming service for the given player `mode` + art URL. */
-export function detectService(mode: string, albumArtURI: string | null): StreamService | null {
+/**
+ * Vendor strings WiiM populates for its OWN internal aggregators, not a real
+ * third-party casting app: internet-radio presets report vendor "CustomRadio"
+ * (WiiM's built-in radio browser, not the station). Surfacing that as the
+ * "service" is exactly the bug this file avoids, so it's excluded here — real
+ * vendors (Plex, Roon, BubbleUPnP, …) pass through untouched.
+ */
+const INTERNAL_VENDOR_NAMES = new Set(["customradio"]);
+
+/** True for a vendor string naming a real external service/app (not one of
+ *  WiiM's internal aggregator names above). */
+function isRealVendor(vendor: string | null): vendor is string {
+  return !!vendor && !INTERNAL_VENDOR_NAMES.has(vendor.toLowerCase());
+}
+
+/** Resolve the streaming service for the given player `mode` + art URL + vendor.
+ *  `sourceKey` is parse's already-decided source (network/cast → "wifi"), used
+ *  to keep the vendor fallback from firing on a physical input that happens to
+ *  carry a stale `vendor` string from a just-ended cast. */
+export function detectService(
+  mode: string,
+  albumArtURI: string | null,
+  vendor: string | null = null,
+  sourceKey: string | null = null,
+): StreamService | null {
   const direct = SERVICE_BY_MODE[mode];
   if (direct) return { ...direct };
 
@@ -68,8 +91,19 @@ export function detectService(mode: string, albumArtURI: string | null): StreamS
         if (host.includes(match)) return { ...def };
       }
     }
+    // A real casting vendor beats the bare "Network" label on a generic mode —
+    // e.g. a Plex-hosted preset the device pulls itself lands on mode 10 but
+    // still reports vendor "Plex".
+    if (isRealVendor(vendor)) return { key: "vendor", name: vendor, logo: null };
     return { key: "network", name: "Network", logo: null };
   }
+
+  // DLNA/UPnP push sessions (e.g. Plex cast TO the device) aren't a known mode
+  // and have no physical input — name them after the vendor so the stream-info
+  // band shows "Plex" and format inference runs off getMetaInfo. Gated on
+  // sourceKey === "wifi" (parse's verdict for network/cast pushes) so a real
+  // PHYSICAL input carrying a stale vendor string never gets a phantom service.
+  if (sourceKey === "wifi" && isRealVendor(vendor)) return { key: "vendor", name: vendor, logo: null };
   return null; // physical inputs etc. — no info block
 }
 
