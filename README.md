@@ -289,6 +289,8 @@ MIT — see [LICENSE](LICENSE). You're free to use, modify and redistribute.
 
 WiiM/LinkPlay HTTP API behaviour and the shared client certificate are derived from the official *HTTP API for WiiM Products v1.2* and the open-source [`python-linkplay`](https://github.com/Velleman/python-linkplay) / [`pywiim`](https://github.com/mjcumming/pywiim) projects. Sub-out (`getSubLPF`/`setSubLPF`), extended output/source modes and presets are community-verified and not all in the official PDF.
 
+Much of the newer protocol work — the UPnP `GetInfoEx` now-playing path, the loop-mode table, and several source/mode mappings — was informed by [Benjamin Herrenschmidt](https://github.com/ozbenh)'s reverse-engineering and his [`rustywiim`](https://github.com/ozbenh/rustywiim) project. Thanks, Ben. 🙏
+
 The vinyl-record illustration (`public/vinyl-record.svg`) is public-domain (CC0) — "Vinyl records" by BenBois via [OpenClipart](https://openclipart.org/detail/7645/vinyl-records-by-benbois).
 
 > **Disclaimer:** This is an unofficial, community project and is not affiliated with or endorsed by WiiM / LinkPlay. Use at your own risk.
