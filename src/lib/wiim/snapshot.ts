@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import {
   fetchDeviceInfo,
   fetchPlayerStatus,
-  fetchMetaInfo,
+  fetchTrackMeta,
   fetchSubwoofer,
   fetchOutput,
   fetchPresets,
@@ -42,7 +42,7 @@ export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceS
     await Promise.allSettled([
       fetchDeviceInfo(device.ip),
       fetchPlayerStatus(device.ip),
-      fetchMetaInfo(device.ip),
+      fetchTrackMeta(device.ip),
       caps?.subwoofer ? fetchSubwoofer(device.ip) : Promise.resolve(null),
       caps?.outputSwitch ? fetchOutput(device.ip) : Promise.resolve(null),
       caps?.presetCount ? fetchPresets(device.ip, caps.presetCount) : Promise.resolve(null),

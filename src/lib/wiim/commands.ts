@@ -1,5 +1,6 @@
 import "server-only";
 import { wiimRequest, WiimError } from "./client";
+import { fetchGetInfoEx } from "./upnp";
 import { Cmd, SOURCES, SUB_RANGES } from "./constants";
 import {
   safeJson,
@@ -118,6 +119,35 @@ export async function fetchMetaInfo(ip: string): Promise<MetaInfo> {
   } catch {
     return EMPTY_META;
   }
+}
+
+/**
+ * Now-playing metadata, preferring UPnP `GetInfoEx` — it returns fuller, more
+ * reliable track data than the httpapi `getMetaInfo` for DLNA/cast and OEM
+ * sources (Plex, JRiver, iEAST, AudioPro…; issues #4/#8/#9) — and falling back
+ * to httpapi when the device doesn't speak UPnP. Only the metadata is taken
+ * from here; transport state / position / mode / vendor still come from
+ * getPlayerStatusEx (parsePlayerStatus).
+ */
+export async function fetchTrackMeta(ip: string): Promise<MetaInfo> {
+  const g = await fetchGetInfoEx(ip).catch(() => null);
+  // Use GetInfoEx only when it actually carries track metadata. Bluetooth
+  // (metadata comes via AVRCP, not AVTransport) and physical inputs come back
+  // empty from GetInfoEx while httpapi getMetaInfo still has the data — fall
+  // back there rather than showing a blank card.
+  if (g && (g.title || g.albumArt || g.sampleRate != null)) {
+    return {
+      albumArt: g.albumArt,
+      quality: g.quality,
+      sampleRate: g.sampleRate,
+      bitDepth: g.bitDepth,
+      bitRate: g.bitRate,
+      title: g.title,
+      artist: g.artist,
+      album: g.album,
+    };
+  }
+  return fetchMetaInfo(ip);
 }
 
 /** Connected Bluetooth *source* device name (the phone/tablet casting to us). */
