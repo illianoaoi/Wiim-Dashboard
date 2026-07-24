@@ -3,6 +3,11 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.10] — 2026-07-24
+
+### Fixed
+- **Repeat / shuffle could apply the wrong mode** — the write mapping wasn't the inverse of the read mapping, so turning repeat **off** actually wrote the "repeat all" value, and enabling shuffle dropped the current repeat setting. The loopmode table is now symmetric (a written value reads back unchanged), verified on WiiM Ultra + Mini. Thanks to [@ozbenh](https://github.com/ozbenh) for round-tripping it on real hardware.
+
 ## [0.3.9] — 2026-07-24
 
 ### Changed
