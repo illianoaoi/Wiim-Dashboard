@@ -136,6 +136,27 @@ const STATE_MAP: Record<string, PlaybackState> = {
   NO_MEDIA_PRESENT: "stopped",
 };
 
+/** PlayMedium → the numeric `mode` (byte-identical to the httpapi `mode`), for
+ *  OEM boxes (e.g. Audio Pro C5) whose GetInfoEx omits <PlayType>. Verified on
+ *  hardware in @ozbenh's rustywiim (mode_from_play_medium). */
+const PLAY_MEDIUM_TO_MODE: Record<string, string> = {
+  BLUETOOTH: "41",
+  "LINE-IN": "40",
+  RCA: "44",
+  OPTICAL: "43",
+  HDMI: "49",
+  PHONO: "54",
+  SPOTIFY: "31",
+  QOBUZ_CONNECT: "36",
+  TIDAL_CONNECT: "32",
+  "SONGLIST-NETWORK": "10",
+  "STATION-NETWORK": "10",
+  "RADIO-NETWORK": "10",
+};
+function modeFromPlayMedium(medium: string | null): string | null {
+  return medium ? (PLAY_MEDIUM_TO_MODE[medium.trim().toUpperCase()] ?? null) : null;
+}
+
 // A device that fails GetInfoEx (no UPnP, or has description.xml but no
 // GetInfoEx) is skipped for a while so it isn't re-probed — and the failing
 // description.xml + SOAP round-trips don't stall — on every snapshot poll.
@@ -206,7 +227,11 @@ export function parseGetInfoEx(xml: string): GetInfoExResult {
   const rawState = tag(xml, "CurrentTransportState")?.trim() ?? "";
   const state = STATE_MAP[rawState] ?? null;
   const volume = numOrNull(tag(xml, "CurrentVolume"));
-  const playType = tag(xml, "PlayType")?.trim() || null;
+  // PlayType is byte-identical to the httpapi `mode`. Some OEM boxes never send
+  // <PlayType> — derive it from <PlayMedium> in that case.
+  const rawPlayType = tag(xml, "PlayType")?.trim() ?? "";
+  const playType =
+    rawPlayType && rawPlayType !== "-1" ? rawPlayType : modeFromPlayMedium(tag(xml, "PlayMedium"));
 
   // TrackMetaData is DIDL-Lite escaped once inside the SOAP body → unescape to
   // recover real DIDL tags (leaf text is then unescaped a SECOND time below).

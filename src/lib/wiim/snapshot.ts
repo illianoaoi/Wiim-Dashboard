@@ -13,6 +13,7 @@ import {
   fetchUsbDac,
 } from "./commands";
 import { detectService, inferAudioFormat } from "./now-playing-info";
+import { deriveSource } from "./parse";
 import { getSleep } from "@/lib/sleep/timer";
 import type { DeviceSnapshot, DeviceCapabilities } from "./types";
 
@@ -76,6 +77,18 @@ export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceS
           };
     const meta = tm.meta;
     player.quality = meta.quality;
+    // OEM boxes (e.g. Audio Pro) can return an incomplete getPlayerStatusEx with
+    // no usable source. When GetInfoEx knows it — via PlayType, or its
+    // PlayMedium fallback — re-derive so the source card + service light up.
+    // Only fills a gap (sourceKey === null); WiiM's own mode is untouched.
+    if (player.sourceKey === null && tm.transport?.playType) {
+      const s = deriveSource(tm.transport.playType, player.vendor);
+      if (s.sourceKey) {
+        player.sourceMode = s.sourceMode;
+        player.sourceLabel = s.sourceLabel;
+        player.sourceKey = s.sourceKey;
+      }
+    }
     // Sources like Bluetooth leave Title/Artist empty in getPlayerStatusEx but
     // provide them via getMetaInfo (AVRCP) — fall back to those (only when empty,
     // so streaming is untouched).
