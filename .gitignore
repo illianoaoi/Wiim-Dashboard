@@ -40,3 +40,6 @@ tsconfig.tsbuildinfo
 scripts/wiim-capture.jsonl
 scripts/wiim-commands-summary.json
 __pycache__/
+
+# Reverse-engineering assets (decompiled WiiM app) — never commit
+APK/

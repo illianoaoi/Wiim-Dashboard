@@ -3,6 +3,39 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] — 2026-07-23
+
+Amazon Music, in the dashboard. Search the catalogue, browse it, and play to
+your WiiM — all through the same SSRF-guarded server proxy as the rest of the
+app. Playback is delegated to the device's own Amazon session (the WiiM
+resolves and plays the streams); the dashboard never touches DRM or audio.
+
+### Added
+- **Amazon Music search** — a full search surface with two sources you can
+  compare side by side: **Catalog** (Amazon's anonymous web-player endpoint,
+  works with no account linked) and **Device** (the WiiM's authenticated
+  session). Results are bucketed into tracks, albums, artists, playlists and
+  community playlists, with proxied artwork.
+- **Browse & pagination** — a "See all" per category opens a full grid that
+  loads more on scroll (infinite pagination over Amazon's own continuation
+  tokens).
+- **Detail views with tracklists** — tapping an album, playlist or community
+  playlist opens a detail page with its full song list, a **Play all**, and
+  tap-a-song-to-play.
+- **Discover home** — the Amazon card on the dashboard now shows browsable
+  rows of real content (by genre/mood) inline, launching straight into a
+  detail; a search action opens the full surface.
+- **Community-playlist playback** — play playlists made by other users
+  (resolved via the web player's library endpoint).
+- **Play a container from any track** — tapping a song inside an album or
+  playlist queues the whole thing on the device starting at that track (real
+  up-next), rather than playing a lone track.
+
+### Changed
+- **Resilience** — the Amazon upstreams (which intermittently return 5xx) are
+  now retried with bounded exponential backoff; deterministic 4xx responses
+  are never retried.
+
 ## [0.3.7] — 2026-07-13
 
 Fixes from community bug reports (thanks [@gthibo](https://github.com/gthibo)).

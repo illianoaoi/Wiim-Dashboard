@@ -20,6 +20,7 @@ import { TempCard } from "./temp-card";
 import { PresetCard } from "./preset-card";
 import { DeviceInfoCard } from "./device-info-card";
 import { LastfmStatsCard } from "./lastfm-stats-card";
+import { StreamingSearchCard } from "./streaming-search-card";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { AppFooter } from "@/components/app-footer";
@@ -140,6 +141,8 @@ export function Dashboard({ initialDevices }: { initialDevices: DeviceListItem[]
             {vis("presets") && snap.presets && snap.presets.length > 0 && (
               <PresetCard deviceId={did} presets={snap.presets} onChanged={refresh} />
             )}
+
+            <StreamingSearchCard deviceId={did} onChanged={refresh} />
 
             {/* Full per-source Graphic + Parametric EQ (self-hides if unsupported) */}
             {vis("eq") && <EqCard deviceId={did} initialSource={eqSource} />}
