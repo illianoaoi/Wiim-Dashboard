@@ -13,6 +13,7 @@ import {
 } from "./parse";
 import type {
   PlayerStatus,
+  PlaybackState,
   DeviceInfo,
   SubwooferStatus,
   OutputStatus,
@@ -129,25 +130,37 @@ export async function fetchMetaInfo(ip: string): Promise<MetaInfo> {
  * from here; transport state / position / mode / vendor still come from
  * getPlayerStatusEx (parsePlayerStatus).
  */
-export async function fetchTrackMeta(ip: string): Promise<MetaInfo> {
+export interface TrackMeta {
+  meta: MetaInfo;
+  /** Transport read from the SAME GetInfoEx call — its CurrentTransportState is
+   *  the honest play state for cast/push sources where getPlayerStatusEx sticks
+   *  on "stop". null when GetInfoEx didn't run (BT/physical/non-UPnP). */
+  transport: { state: PlaybackState | null } | null;
+}
+
+export async function fetchTrackMeta(ip: string): Promise<TrackMeta> {
   const g = await fetchGetInfoEx(ip).catch(() => null);
-  // Use GetInfoEx only when it actually carries track metadata. Bluetooth
-  // (metadata comes via AVRCP, not AVTransport) and physical inputs come back
-  // empty from GetInfoEx while httpapi getMetaInfo still has the data — fall
-  // back there rather than showing a blank card.
+  const transport = g ? { state: g.state } : null;
+  // Use GetInfoEx METADATA only when it actually carries track info. Bluetooth
+  // (AVRCP, not AVTransport) and physical inputs come back empty from GetInfoEx
+  // while httpapi getMetaInfo still has the data — fall back for the metadata,
+  // but keep GetInfoEx's transport (its play state is valid regardless).
   if (g && (g.title || g.albumArt || g.sampleRate != null)) {
     return {
-      albumArt: g.albumArt,
-      quality: g.quality,
-      sampleRate: g.sampleRate,
-      bitDepth: g.bitDepth,
-      bitRate: g.bitRate,
-      title: g.title,
-      artist: g.artist,
-      album: g.album,
+      meta: {
+        albumArt: g.albumArt,
+        quality: g.quality,
+        sampleRate: g.sampleRate,
+        bitDepth: g.bitDepth,
+        bitRate: g.bitRate,
+        title: g.title,
+        artist: g.artist,
+        album: g.album,
+      },
+      transport,
     };
   }
-  return fetchMetaInfo(ip);
+  return { meta: await fetchMetaInfo(ip), transport };
 }
 
 /** Connected Bluetooth *source* device name (the phone/tablet casting to us). */

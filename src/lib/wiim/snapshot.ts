@@ -16,18 +16,6 @@ import { detectService, inferAudioFormat } from "./now-playing-info";
 import { getSleep } from "@/lib/sleep/timer";
 import type { DeviceSnapshot, DeviceCapabilities } from "./types";
 
-/**
- * Poll-delta transport memory for vendor-push sources (Plex/DLNA), keyed by
- * device id. These sessions report a permanently-stale `status:stop` while
- * `curpos` still advances, so a single snapshot can't tell play from stop — we
- * compare position across consecutive polls instead: advanced ⇒ playing, frozen
- * ⇒ stopped. Inherently one poll behind, and can't tell stop from pause (both
- * freeze) — both accepted. Only consulted for the vendor-push case; every other
- * source keeps the device's own reported state.
- */
-const vendorTransport = new Map<string, { position: number; at: number; playing: boolean }>();
-const VENDOR_TRANSPORT_TTL_MS = 60_000;
-
 export interface PollableDevice {
   id: string;
   ip: string;
@@ -70,19 +58,23 @@ export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceS
   const player = playerR.status === "fulfilled" ? playerR.value : null;
 
   if (player) {
-    const meta =
+    const tm =
       metaR.status === "fulfilled"
         ? metaR.value
         : {
-            albumArt: null,
-            quality: null,
-            sampleRate: null,
-            bitDepth: null,
-            bitRate: null,
-            title: null,
-            artist: null,
-            album: null,
+            meta: {
+              albumArt: null,
+              quality: null,
+              sampleRate: null,
+              bitDepth: null,
+              bitRate: null,
+              title: null,
+              artist: null,
+              album: null,
+            },
+            transport: null,
           };
+    const meta = tm.meta;
     player.quality = meta.quality;
     // Sources like Bluetooth leave Title/Artist empty in getPlayerStatusEx but
     // provide them via getMetaInfo (AVRCP) — fall back to those (only when empty,
@@ -97,26 +89,15 @@ export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceS
     // vendor string off a real physical input.
     player.service = detectService(player.sourceMode, meta.albumArt, player.vendor, player.sourceKey);
 
-    // Poll-delta transport for the vendor-push quirk (e.g. Plex cast on mode
-    // 99): the device's `status` sticks at "stop" while `curpos` advances, so
-    // derive play/stop from whether `position` moved since the previous poll.
-    // Guards: only a vendor push on mode 99, and NOT a multiroom follower
-    // (group "1" also reports mode 99 but keeps an honest status incl. pause,
-    // which this position heuristic can't represent — leave it untouched).
-    if (player.vendor && player.sourceMode === "99" && info?.group !== "1") {
-      const now = Date.now();
-      const prev = vendorTransport.get(device.id);
-      const fresh = prev && now - prev.at < VENDOR_TRANSPORT_TTL_MS;
-      let playing: boolean;
-      if (!fresh) {
-        playing = true; // first sight / stale memory → assume playing (no freeze on a fresh cast)
-      } else if (now - prev!.at < 1500) {
-        playing = prev!.playing; // polled too soon: position is second-resolution, keep the last verdict
-      } else {
-        playing = player.position > prev!.position;
-      }
-      vendorTransport.set(device.id, { position: player.position, at: now, playing });
-      player.state = playing ? "playing" : "stopped";
+    // Prefer GetInfoEx's honest CurrentTransportState for network/cast sources.
+    // The HTTP API's `status` sticks on "stop" for DLNA/cast pushes (Plex) and
+    // is incomplete on some OEM boxes, whereas GetInfoEx reports the real play
+    // state (this replaces the old poll-delta heuristic and also handles pause +
+    // multiroom followers correctly). Gated on sourceKey === "wifi" (parse's
+    // verdict for network + cast); physical inputs and Bluetooth keep the HTTP
+    // API's state, where GetInfoEx's transport is meaningless/misleading.
+    if (tm.transport?.state && player.sourceKey === "wifi") {
+      player.state = tm.transport.state;
     }
     player.audio = inferAudioFormat(
       player.service?.key ?? null,
