@@ -63,6 +63,14 @@ export function KioskView({
   const [idle, setIdle] = useState(false);
 
   useEffect(() => {
+    // Lock scroll on the page behind this full-screen overlay, otherwise the
+    // dashboard underneath (taller than the viewport) keeps its scrollbar and it
+    // shows through in the right gutter.
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
     // Keep the screen awake for a wall display.
     type WakeSentinel = { release: () => Promise<void> };
     const nav = navigator as Navigator & {
@@ -99,6 +107,8 @@ export function KioskView({
     window.addEventListener("keydown", onKey);
 
     return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("mousemove", wake);
       window.removeEventListener("touchstart", wake);
