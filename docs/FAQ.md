@@ -35,7 +35,7 @@ Yes. Everything runs on your own machine; the SQLite database lives in a Docker 
 ## Can I run it on Unraid / Proxmox / Home Assistant?
 - **Unraid:** yes — add a container from `illianoaoi/wiim-dashboard` (Docker Hub) or GHCR; CA Auto Update keeps it current. Use a Docker named volume for `/data`, or make the appdata path writable by uid 1001 (the app runs non-root).
 - **Proxmox:** spin up a Debian LXC (enable nesting for Docker) or a small VM, install Docker, run the one-liner.
-- **Home Assistant:** not in HACS (HACS is for cards/integrations, not full web apps). A managed HA Add-on is on the radar; meanwhile you can embed the running dashboard in your HA dashboard with a Webpage/iframe card.
+- **Home Assistant:** there's now a **Home Assistant add-on** (beta) that runs the dashboard on HA OS / Supervised. In HA go to Settings → Add-ons → Store → ⋮ → Repositories, add `https://github.com/illianoaoi/Wiim-Dashboard`, then install **WiiM Dashboard** and open the Web UI. (It's not in HACS — HACS is for cards/integrations, not full web apps.) You can also embed the running dashboard in a Lovelace Webpage/iframe card.
 
 ## Something's not working / I have an idea
 Open a [GitHub issue](https://github.com/illianoaoi/Wiim-Dashboard/issues) with your WiiM model + firmware (from the Device card) and what you expected vs. saw. Feature ideas welcome too.

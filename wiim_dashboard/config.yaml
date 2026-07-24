@@ -1,0 +1,32 @@
+name: WiiM Dashboard
+version: "0.3.11"
+slug: wiim_dashboard
+description: Monitor & control WiiM / LinkPlay streamers — now-playing, EQ, sub-out, sources, presets, Last.fm.
+url: "https://github.com/illianoaoi/Wiim-Dashboard"
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+ports:
+  "3000/tcp": 8099
+ports_description:
+  "3000/tcp": Web UI — open http://<home-assistant>:8099
+webui: "http://[HOST]:[PORT:3000]/"
+panel_icon: mdi:speaker-wireless
+# The app persists its SQLite DB + auto-generated secret in the add-on's /data
+# (mounted automatically by the Supervisor and included in HA backups).
+options:
+  cookie_secure: false
+  app_origin: ""
+  turnstile_site_key: ""
+  turnstile_secret_key: ""
+schema:
+  # Set true only if you reach the add-on over HTTPS (e.g. behind your own proxy).
+  cookie_secure: bool
+  # Only needed if fronted by a reverse proxy on a different hostname.
+  app_origin: "str?"
+  # Optional Cloudflare Turnstile on the login form.
+  turnstile_site_key: "str?"
+  turnstile_secret_key: "password?"

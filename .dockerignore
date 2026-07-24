@@ -14,3 +14,6 @@ README.md
 .vscode
 .idea
 .claude
+# Home Assistant add-on (HA installs it straight from the repo; not part of the app image)
+repository.yaml
+wiim_dashboard
