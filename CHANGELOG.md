@@ -3,6 +3,11 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.9] — 2026-07-24
+
+### Changed
+- **Play/pause for cast & network sources now comes from UPnP `GetInfoEx`** ([#4](https://github.com/illianoaoi/Wiim-Dashboard/issues/4), [#9](https://github.com/illianoaoi/Wiim-Dashboard/issues/9)) — the HTTP API reports a permanently-stuck "stop" for DLNA/cast push sessions (Plex) and is incomplete on some OEM streamers, so the dashboard now takes the real transport state from `GetInfoEx`'s `CurrentTransportState` for those sources. This fixes the wrong play/pause on Plex, correctly reflects pause and multiroom followers, and removes the previous position-delta heuristic. Physical inputs and Bluetooth are unchanged.
+
 ## [0.3.8] — 2026-07-13
 
 ### Changed
