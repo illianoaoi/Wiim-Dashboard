@@ -3,6 +3,14 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.8] — 2026-07-13
+
+### Changed
+- **Now-playing metadata now reads from UPnP `GetInfoEx`** ([#4](https://github.com/illianoaoi/Wiim-Dashboard/issues/4), [#8](https://github.com/illianoaoi/Wiim-Dashboard/issues/8), [#9](https://github.com/illianoaoi/Wiim-Dashboard/issues/9)) — the cover art, title/artist/album and the audio-quality readout are now taken from the device's UPnP `GetInfoEx` call, which returns fuller, more reliable data than the HTTP API for **DLNA / cast and OEM sources** (Plex, JRiver, and LinkPlay-based boxes such as iEAST / AudioPro). It falls back to the HTTP API automatically for Bluetooth, physical inputs, and any device that doesn't expose it, so nothing regresses. Transport state, position, source and volume still come from the HTTP API. (Groundwork from [@ozbenh](https://github.com/ozbenh)'s rustywiim.)
+
+### Fixed
+- **Scrollbar showing in full-screen kiosk / wall-display mode** — the dashboard behind the full-screen overlay kept its scrollbar in the right gutter; page scroll is now locked while the kiosk view is open and restored on exit.
+
 ## [0.3.7] — 2026-07-13
 
 Fixes from community bug reports (thanks [@gthibo](https://github.com/gthibo)).
