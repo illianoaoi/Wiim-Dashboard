@@ -3,6 +3,11 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.11] — 2026-07-24
+
+### Added
+- **Source detection for OEM streamers via UPnP `GetInfoEx`** ([#9](https://github.com/illianoaoi/Wiim-Dashboard/issues/9)) — some LinkPlay-based OEM boxes (e.g. Audio Pro) return an incomplete HTTP-API player status with no usable source `mode`, so their source/service card never showed. When the HTTP API can't resolve the source, the dashboard now falls back to `GetInfoEx`'s `PlayType` — and on devices that omit that field, derives it from `PlayMedium`. WiiM devices, which always report a good mode, are unaffected.
+
 ## [0.3.10] — 2026-07-24
 
 ### Fixed
