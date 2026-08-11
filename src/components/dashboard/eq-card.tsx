@@ -13,7 +13,7 @@ import { useToast } from "@/components/toast";
 import { useConfirm, usePrompt } from "@/components/modal";
 import { apiGet, apiSend, ApiError } from "@/lib/client/api";
 import { cn } from "@/lib/utils";
-import { GRAPHIC_GAIN, PEQ_RANGE, PEQ_MODES } from "@/lib/wiim/eq-constants";
+import { GRAPHIC_GAIN, PEQ_RANGE, PEQ_MODES, PEQ_GAIN_INDEPENDENT_MODES } from "@/lib/wiim/eq-constants";
 import type { EqOverview, EqType, ParametricBand, EqParametricState } from "@/lib/wiim/types";
 
 type Overview = EqOverview & { source: string };
@@ -260,6 +260,7 @@ function PeqRow({
     void send({ action: "setParametric", source, letter: band.letter, ...params });
 
   const off = band.mode === -1;
+  const gainNA = PEQ_GAIN_INDEPENDENT_MODES.has(band.mode); // low/high-pass: device ignores gain
   const modeLabel = PEQ_MODES.find((m) => m.value === band.mode)?.label ?? "Peak";
 
   return (
@@ -329,7 +330,7 @@ function PeqRow({
         min={PEQ_RANGE.gainMin}
         max={PEQ_RANGE.gainMax}
         step={0.5}
-        disabled={off || readOnly}
+        disabled={off || gainNA || readOnly}
         onChange={(v) => {
           setDragging(true);
           setGain(v);
@@ -341,7 +342,7 @@ function PeqRow({
         aria-label={`Band ${band.letter} gain`}
       />
       <span className="text-right text-xs tabular-nums text-muted-foreground">
-        {gain > 0 ? `+${gain}` : gain}
+        {gainNA ? "—" : gain > 0 ? `+${gain}` : gain}
       </span>
     </div>
   );

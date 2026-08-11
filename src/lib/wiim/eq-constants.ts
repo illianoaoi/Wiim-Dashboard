@@ -49,12 +49,20 @@ export const PEQ_RANGE = {
   gainMax: 12,
 } as const;
 
+// Parametric filter types → device `<band>_mode` value. Mapping confirmed on a
+// real WiiM Ultra (via rustywiim's MITM table): note the gap — 4 is unused.
+// Low/High-Pass are slope filters: the device ignores their gain.
 export const PEQ_MODES: { value: number; label: string }[] = [
   { value: -1, label: "Off" },
   { value: 0, label: "Low Shelf" },
   { value: 1, label: "Peak" },
   { value: 2, label: "High Shelf" },
+  { value: 3, label: "Low Pass" },
+  { value: 5, label: "High Pass" },
 ];
+
+/** Filter modes whose gain the device ignores (slope filters). */
+export const PEQ_GAIN_INDEPENDENT_MODES = new Set([3, 5]);
 
 export const CHANNEL_MODE_STEREO = "Stereo";
 

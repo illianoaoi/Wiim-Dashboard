@@ -16,6 +16,7 @@ import type {
   EqParametricState,
   EqPresets,
   EqSourceState,
+  AcousticCapability,
 } from "./types";
 
 type EqBandArray = { param_name?: string; value?: number }[];
@@ -94,6 +95,59 @@ function isOn(raw: RawEq | null): boolean {
 /** True if the device exposes the LV2 EQ API at all (kill-switch). */
 export async function eqSupported(ip: string): Promise<boolean> {
   return (await eqCall(ip, EqCmd.getBand(EQ_PLUGIN.graphic), 5000)) !== null;
+}
+
+interface RawAcoustic {
+  status?: string;
+  GEQ?: unknown;
+  PEQ?: { Filters?: unknown };
+  RC?: unknown;
+  HeadphoneEQ?: unknown;
+  SubLPF?: unknown;
+  OutputDelay?: {
+    PerOutputDelay?: boolean;
+    EnableMicroDelay?: boolean;
+    MinDelayUs?: number;
+    MaxDelayUs?: number;
+    StepDelayUs?: number;
+  };
+}
+
+/**
+ * Read `GetAcousticCapability` — the device's EQ/acoustics descriptor (WiiM LV2
+ * models: Ultra / Pro / Amp …). Returns null when the firmware doesn't expose it
+ * (OEM / older devices answer "unknown command" or `{"status":"Failed"}`).
+ * Verified live on a WiiM Ultra (fw 5.2.824843).
+ */
+export async function getAcousticCapability(ip: string): Promise<AcousticCapability | null> {
+  let text: string;
+  try {
+    text = (await wiimRequest(ip, "GetAcousticCapability", { timeoutMs: 5000 })).text;
+  } catch {
+    return null;
+  }
+  if (text.toLowerCase().includes("unknown command")) return null;
+  const j = safeJson<RawAcoustic>(text);
+  if (!j || (typeof j.status === "string" && j.status.toLowerCase() === "failed")) return null;
+  const filters = j.PEQ?.Filters;
+  const od = j.OutputDelay;
+  return {
+    peqFilters: Array.isArray(filters) ? filters.map(String) : [],
+    graphic: j.GEQ != null,
+    parametric: j.PEQ != null,
+    roomCorrection: j.RC != null,
+    headphoneEq: j.HeadphoneEQ != null,
+    subLpf: j.SubLPF != null,
+    outputDelay: od
+      ? {
+          enableMicroDelay: !!od.EnableMicroDelay,
+          perOutputDelay: !!od.PerOutputDelay,
+          minUs: Number(od.MinDelayUs ?? 0),
+          maxUs: Number(od.MaxDelayUs ?? 0),
+          stepUs: Number(od.StepDelayUs ?? 0),
+        }
+      : null,
+  };
 }
 
 /** Read full EQ state (graphic + parametric) for one source. */

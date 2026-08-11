@@ -154,6 +154,27 @@ export interface PresetItem {
   hasArt: boolean; // artwork available (served via the preset-art proxy)
 }
 
+/** Parsed `GetAcousticCapability` — WiiM LV2 EQ/acoustics descriptor. null when
+ *  the device doesn't expose it (older/OEM firmware answers "unknown"/Failed). */
+export interface AcousticCapability {
+  /** parametric filter tokens the firmware supports, e.g. ["OFF","LS","PK","HS","LP","HP"]. */
+  peqFilters: string[];
+  graphic: boolean;
+  parametric: boolean;
+  roomCorrection: boolean;
+  /** dedicated headphone-output EQ available (top-level "HeadphoneEQ" key present). */
+  headphoneEq: boolean;
+  subLpf: boolean;
+  /** micro output-delay / time-alignment support; null if absent. */
+  outputDelay: {
+    enableMicroDelay: boolean;
+    perOutputDelay: boolean;
+    minUs: number;
+    maxUs: number;
+    stepUs: number;
+  } | null;
+}
+
 export interface DeviceCapabilities {
   /** temperature fields present (amp models). */
   temperature: boolean;
@@ -170,6 +191,8 @@ export interface DeviceCapabilities {
   /** output ids this device offers. */
   outputs: number[];
   isAmp: boolean;
+  /** GetAcousticCapability profile (null if the device doesn't expose it). */
+  acoustic: AcousticCapability | null;
 }
 
 /** Everything the dashboard needs for one device in a single poll. */
