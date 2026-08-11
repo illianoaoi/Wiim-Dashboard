@@ -193,6 +193,8 @@ export interface DeviceCapabilities {
   isAmp: boolean;
   /** GetAcousticCapability profile (null if the device doesn't expose it). */
   acoustic: AcousticCapability | null;
+  /** output hw id → hw ids it plays through simultaneously (coexistMode). */
+  outputCoexist: Record<number, number[]>;
 }
 
 /** Everything the dashboard needs for one device in a single poll. */

@@ -1,7 +1,7 @@
 import "server-only";
 import { wiimRequest, WiimError } from "./client";
 import { fetchGetInfoEx } from "./upnp";
-import { Cmd, SOURCES, SUB_RANGES } from "./constants";
+import { Cmd, SOURCES, SUB_RANGES, OUTPUT_MODE_NAME_TO_HW } from "./constants";
 import {
   safeJson,
   parsePlayerStatus,
@@ -266,6 +266,44 @@ export async function fetchUsbDac(ip: string): Promise<string | null> {
     return dac;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Which output hardware ids the device drives *simultaneously*, from
+ * `getSoundCardModeSupportList`'s per-mode `coexistMode` (e.g. the WiiM Ultra
+ * feeds Optical or COAX together with Line Out). Keyed by OUTPUTS hardware id →
+ * the hardware ids it also plays through. Empty when unsupported. Static per
+ * device, so this is read once at capability-detection time.
+ */
+export async function fetchOutputCoexist(ip: string): Promise<Record<number, number[]>> {
+  try {
+    const text = await send(ip, Cmd.getSoundCardModes, 4000);
+    const raw = safeJson<unknown>(text);
+    if (!raw) return {};
+    const out: Record<number, number[]> = {};
+    const walk = (v: unknown): void => {
+      if (v == null || typeof v !== "object") return;
+      if (Array.isArray(v)) {
+        v.forEach(walk);
+        return;
+      }
+      const o = v as Record<string, unknown>;
+      const hw = typeof o.mode === "string" ? OUTPUT_MODE_NAME_TO_HW[o.mode] : undefined;
+      const sc = o.soundCard as Record<string, unknown> | undefined;
+      const co = sc?.coexistMode;
+      if (hw != null && Array.isArray(co)) {
+        const coHw = co
+          .map((m) => OUTPUT_MODE_NAME_TO_HW[String(m)])
+          .filter((n): n is number => n != null && n !== hw);
+        if (coHw.length) out[hw] = Array.from(new Set(coHw));
+      }
+      Object.values(o).forEach(walk);
+    };
+    walk(raw);
+    return out;
+  } catch {
+    return {};
   }
 }
 

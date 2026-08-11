@@ -184,6 +184,16 @@ export const OUTPUTS: OutputDef[] = [
   { id: 8, label: "USB", icon: "Usb", documented: false }, // USB DAC out (issue #11, @MennoH Ultra)
 ];
 
+/** getSoundCardModeSupportList `mode` token → OUTPUTS hardware id. Used for the
+ *  simultaneous-output ("coexist") display. LinkPlay-standard mode names. */
+export const OUTPUT_MODE_NAME_TO_HW: Record<string, number> = {
+  AUDIO_OUTPUT_AUX_MODE: 2, // Line Out
+  AUDIO_OUTPUT_SPDIF_MODE: 1, // Optical
+  AUDIO_OUTPUT_COAX_MODE: 3, // Coaxial
+  AUDIO_OUTPUT_PHONE_JACK_MODE: 4, // Headphone
+  AUDIO_OUTPUT_UAC_CARD_MODE: 8, // USB DAC
+};
+
 /** Known WiiM EQ preset names (fallback if EQGetList is unavailable). */
 export const EQ_PRESETS_FALLBACK = [
   "Flat", "Acoustic", "Bass Booster", "Bass Reducer", "Classical", "Dance",

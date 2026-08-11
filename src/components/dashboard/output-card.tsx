@@ -12,11 +12,13 @@ export function OutputCard({
   deviceId,
   outputIds,
   current,
+  coexist,
   onChanged,
 }: {
   deviceId: string;
   outputIds: number[];
   current: number | null;
+  coexist?: Record<number, number[]>;
   onChanged: () => void;
 }) {
   const toast = useToast();
@@ -31,6 +33,15 @@ export function OutputCard({
     label: o.label,
     icon: o.icon,
   }));
+
+  // Outputs this device drives at the same time as the current one (e.g. the
+  // Ultra feeds Line Out alongside Optical/COAX). #5
+  const coexistLabels =
+    current != null
+      ? (coexist?.[current] ?? [])
+          .map((id) => OUTPUTS.find((o) => o.id === id)?.label)
+          .filter((l): l is string => !!l)
+      : [];
 
   async function select(id: string) {
     setBusyId(id);
@@ -57,6 +68,11 @@ export function OutputCard({
           onSelect={select}
         />
       </div>
+      {coexistLabels.length > 0 && (
+        <p className="mt-3 px-5 text-[11px] leading-snug text-muted-foreground">
+          Also playing through {coexistLabels.join(" + ")} at the same time.
+        </p>
+      )}
     </Card>
   );
 }
