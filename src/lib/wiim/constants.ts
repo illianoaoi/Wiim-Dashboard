@@ -181,6 +181,7 @@ export const OUTPUTS: OutputDef[] = [
   { id: 1, label: "Optical", icon: "Lightbulb", documented: true },
   { id: 3, label: "Coaxial", icon: "CircleDot", documented: true },
   { id: 4, label: "Headphones", icon: "Headphones", documented: false },
+  { id: 8, label: "USB", icon: "Usb", documented: false }, // USB DAC out (issue #11, @MennoH Ultra)
 ];
 
 /** Known WiiM EQ preset names (fallback if EQGetList is unavailable). */

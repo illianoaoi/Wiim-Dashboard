@@ -3,6 +3,11 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.12] — 2026-08-11
+
+### Fixed
+- **USB output missing from the Output card** ([#11](https://github.com/illianoaoi/Wiim-Dashboard/issues/11)) — devices sending audio to an external DAC over USB (`getNewAudioOutputHardwareMode` returns `hardware:8`) had no USB entry, so the active output was invisible and couldn't be switched. USB is now a recognised output mode; the card always renders the device's current output even when it's an undocumented mode; and capability detection additionally offers whatever output the device is currently on. Thanks to [@MennoH](https://github.com/MennoH) for the report and the exact diagnostic (WiiM Ultra).
+
 ## [0.3.11] — 2026-07-24
 
 ### Added

@@ -22,7 +22,11 @@ export function OutputCard({
   const toast = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const options = OUTPUTS.filter((o) => outputIds.includes(o.id)).map((o) => ({
+  // Always render the live current output even if a stale cached capability set
+  // (detected while on another output) didn't list it — e.g. USB=8. #11
+  const ids =
+    current != null && !outputIds.includes(current) ? [...outputIds, current] : outputIds;
+  const options = OUTPUTS.filter((o) => ids.includes(o.id)).map((o) => ({
     id: String(o.id),
     label: o.label,
     icon: o.icon,

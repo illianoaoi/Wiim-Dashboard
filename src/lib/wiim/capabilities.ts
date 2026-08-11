@@ -87,6 +87,10 @@ export async function detectCapabilities(
   if (outputSwitch) {
     outputs.push(2, 1, 3); // line-out, optical, coaxial (documented)
     if (project.includes("ultra")) outputs.push(4); // headphones on Ultra
+    // Also expose whatever output the device is currently on, so undocumented
+    // modes surface (e.g. USB=8 on the Ultra, reported via getOutput). #11
+    const curHw = Math.trunc(Number(outJson?.hardware));
+    if (Number.isFinite(curHw) && curHw > 0 && !outputs.includes(curHw)) outputs.push(curHw);
   }
 
   const presetCount = Math.max(0, Math.trunc(Number(raw.preset_key)) || 0);
