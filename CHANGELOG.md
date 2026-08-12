@@ -3,6 +3,15 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.13] — 2026-08-11
+
+### Added
+- **Low-Pass / High-Pass parametric EQ filters** — the per-band filter-type picker now offers Low Pass and High Pass (the WiiM app's remaining two filter shapes) alongside Peak / Low Shelf / High Shelf. Their gain control is disabled, since the device ignores gain for these slope filters. Filter→mode mapping confirmed on a WiiM Ultra.
+- **Simultaneous-output awareness** — devices that drive more than one output at once (e.g. the WiiM Ultra feeds Line Out alongside Optical or COAX) now show it on the Output card (“Also playing through Line Out at the same time”), read from `getSoundCardModeSupportList`'s `coexistMode`.
+
+### Changed
+- **EQ/acoustics capability detection via `GetAcousticCapability`** — the dashboard now reads the device's acoustics descriptor (supported PEQ filter set; GEQ / room-correction / headphone-EQ / sub-LPF / output-delay presence) for more reliable EQ detection. Devices that don't expose it (older / OEM firmware) are unaffected.
+
 ## [0.3.12] — 2026-08-11
 
 ### Fixed

@@ -2,6 +2,10 @@
 
 Add-on versions track the app image they wrap (`ghcr.io/illianoaoi/wiim-dashboard`).
 
+## 0.3.13
+
+- Tracks app **0.3.13** — Low/High-Pass PEQ filters, simultaneous-output display, and `GetAcousticCapability`-based EQ detection.
+
 ## 0.3.12
 
 - Tracks app **0.3.12** — USB output now shown/selectable in the Output card ([#11](https://github.com/illianoaoi/Wiim-Dashboard/issues/11)).
