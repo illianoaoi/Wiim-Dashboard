@@ -238,34 +238,51 @@ export async function fetchAudioInputEnable(ip: string): Promise<Record<string, 
 }
 
 /**
- * Name of a connected USB DAC, or null. `getSoundCardModeSupportList` lists the
- * supported output modes; the USB DAC appears as `AUDIO_OUTPUT_UAC_CARD_MODE`
- * with a `devName`. Parsed defensively (the wrapper shape varies by firmware).
+ * Parse `getSoundCardModeSupportList` once: the connected USB-DAC name (if any)
+ * and the *live* set of available output hardware ids (mapped from the LinkPlay
+ * mode tokens). The device only lists an output while it's actually available —
+ * USB, for instance, appears only while a DAC is connected — so this is the
+ * authoritative, up-to-the-poll output roster. Using it as the Output card's
+ * source keeps a volatile output (USB) listed and switchable while the DAC is
+ * on, instead of vanishing the moment you switch away from it (#11).
  */
-export async function fetchUsbDac(ip: string): Promise<string | null> {
+export async function fetchSoundCard(
+  ip: string,
+): Promise<{ usbDac: string | null; outputs: number[] }> {
   try {
     const text = await send(ip, Cmd.getSoundCardModes, 4000);
     const raw = safeJson<unknown>(text);
-    if (!raw) return null;
-    let dac: string | null = null;
+    if (!raw) return { usbDac: null, outputs: [] };
+    let usbDac: string | null = null;
+    const outputs = new Set<number>();
     const walk = (v: unknown): void => {
-      if (dac || v == null || typeof v !== "object") return;
+      if (v == null || typeof v !== "object") return;
       if (Array.isArray(v)) {
         v.forEach(walk);
         return;
       }
       const o = v as Record<string, unknown>;
-      if (o.mode === "AUDIO_OUTPUT_UAC_CARD_MODE" && typeof o.devName === "string") {
-        const name = o.devName.split(/\s+at\s+/i)[0]?.trim();
-        dac = name || o.devName.trim() || null;
-        return;
+      if (typeof o.mode === "string") {
+        const hw = OUTPUT_MODE_NAME_TO_HW[o.mode];
+        if (hw != null) outputs.add(hw);
+        if (o.mode === "AUDIO_OUTPUT_UAC_CARD_MODE" && !usbDac) {
+          // devName is on the entry on some firmware, inside `soundCard` on others
+          const sc = o.soundCard as Record<string, unknown> | undefined;
+          const dn =
+            typeof o.devName === "string"
+              ? o.devName
+              : typeof sc?.devName === "string"
+                ? (sc.devName as string)
+                : null;
+          if (dn) usbDac = dn.split(/\s+at\s+/i)[0]?.trim() || dn.trim();
+        }
       }
       Object.values(o).forEach(walk);
     };
     walk(raw);
-    return dac;
+    return { usbDac, outputs: Array.from(outputs) };
   } catch {
-    return null;
+    return { usbDac: null, outputs: [] };
   }
 }
 

@@ -11,12 +11,16 @@ import { OUTPUTS } from "@/lib/wiim/constants";
 export function OutputCard({
   deviceId,
   outputIds,
+  available,
   current,
   coexist,
   onChanged,
 }: {
   deviceId: string;
   outputIds: number[];
+  /** live output roster from getSoundCardModeSupportList; preferred over the
+   *  cached capability set so volatile outputs (USB) stay in sync. #11 */
+  available?: number[];
   current: number | null;
   coexist?: Record<number, number[]>;
   onChanged: () => void;
@@ -24,10 +28,12 @@ export function OutputCard({
   const toast = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  // Always render the live current output even if a stale cached capability set
-  // (detected while on another output) didn't list it — e.g. USB=8. #11
-  const ids =
-    current != null && !outputIds.includes(current) ? [...outputIds, current] : outputIds;
+  // Prefer the live output roster (getSoundCardModeSupportList) so a volatile
+  // output like USB stays listed and switchable while its DAC is connected —
+  // instead of vanishing the moment you switch away from it. Fall back to the
+  // detected capability set, and always include the live current output. #11
+  const base = available && available.length > 0 ? available : outputIds;
+  const ids = current != null && !base.includes(current) ? [...base, current] : base;
   const options = OUTPUTS.filter((o) => ids.includes(o.id)).map((o) => ({
     id: String(o.id),
     label: o.label,

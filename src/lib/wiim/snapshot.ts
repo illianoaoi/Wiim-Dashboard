@@ -10,7 +10,7 @@ import {
   fetchBtSourceName,
   fetchModeRename,
   fetchAudioInputEnable,
-  fetchUsbDac,
+  fetchSoundCard,
 } from "./commands";
 import { detectService, inferAudioFormat } from "./now-playing-info";
 import { deriveSource } from "./parse";
@@ -27,7 +27,7 @@ export interface PollableDevice {
 export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceSnapshot> {
   const caps = device.capabilities;
 
-  const [infoR, playerR, metaR, subR, outR, presetsR, renameR, inputEnR, usbDacR] =
+  const [infoR, playerR, metaR, subR, outR, presetsR, renameR, inputEnR, soundCardR] =
     await Promise.allSettled([
       fetchDeviceInfo(device.ip),
       fetchPlayerStatus(device.ip),
@@ -37,7 +37,7 @@ export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceS
       caps?.presetCount ? fetchPresets(device.ip, caps.presetCount) : Promise.resolve(null),
       fetchModeRename(device.ip),
       fetchAudioInputEnable(device.ip),
-      fetchUsbDac(device.ip),
+      fetchSoundCard(device.ip),
     ]);
 
   // If both core reads failed, the device is offline/unreachable.
@@ -158,7 +158,8 @@ export async function getDeviceSnapshot(device: PollableDevice): Promise<DeviceS
             .filter(([k, on]) => !on && k !== "wifi")
             .map(([k]) => k)
         : undefined,
-    usbDac: usbDacR.status === "fulfilled" ? usbDacR.value : null,
+    usbDac: soundCardR.status === "fulfilled" ? soundCardR.value.usbDac : null,
+    availableOutputs: soundCardR.status === "fulfilled" ? soundCardR.value.outputs : undefined,
     sleepExpiresAt: getSleep(device.id),
   };
 }

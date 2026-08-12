@@ -8,7 +8,7 @@
 #
 # Keep this tag in sync with `version:` in config.yaml — bump both together on
 # each app release.
-FROM ghcr.io/illianoaoi/wiim-dashboard:0.3.13
+FROM ghcr.io/illianoaoi/wiim-dashboard:0.3.14
 
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh

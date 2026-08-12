@@ -3,6 +3,11 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.14] — 2026-08-12
+
+### Fixed
+- **USB output vanished from the Output card after switching away from it** ([#11](https://github.com/illianoaoi/Wiim-Dashboard/issues/11)) — the Output card now builds its list from the device's **live** `getSoundCardModeSupportList` roster instead of the cached capability set, so a volatile output like USB stays listed and switchable for as long as its DAC is connected — and correctly disappears only when the DAC is powered off (matching the WiiM app). Thanks to [@MennoH](https://github.com/MennoH) for testing 0.3.12 and catching it.
+
 ## [0.3.13] — 2026-08-11
 
 ### Added

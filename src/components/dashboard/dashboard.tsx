@@ -162,6 +162,7 @@ export function Dashboard({ initialDevices }: { initialDevices: DeviceListItem[]
                 <OutputCard
                   deviceId={did}
                   outputIds={caps.outputs}
+                  available={snap.availableOutputs}
                   current={snap.output.hardware}
                   coexist={caps.outputCoexist}
                   onChanged={refresh}
