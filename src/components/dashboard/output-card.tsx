@@ -8,10 +8,21 @@ import { useToast } from "@/components/toast";
 import { apiSend, ApiError } from "@/lib/client/api";
 import { OUTPUTS } from "@/lib/wiim/constants";
 
+/** Button label for the USB output: the connected DAC's name — collapsing a
+ *  repeated leading word some DACs report ("Audio-gd Audio-gd …" → "Audio-gd")
+ *  and trimming if long — else the generic "USB". (@MennoH request, #11) */
+function usbLabel(usbDac?: string | null): string {
+  if (!usbDac) return "USB";
+  let name = usbDac.trim().replace(/^(\S+)\s+\1\b/i, "$1").trim();
+  if (name.length > 16) name = name.slice(0, 15).trimEnd() + "…";
+  return name || "USB";
+}
+
 export function OutputCard({
   deviceId,
   outputIds,
   available,
+  usbDac,
   current,
   coexist,
   onChanged,
@@ -21,6 +32,8 @@ export function OutputCard({
   /** live output roster from getSoundCardModeSupportList; preferred over the
    *  cached capability set so volatile outputs (USB) stay in sync. #11 */
   available?: number[];
+  /** connected USB-DAC name, used to label the USB output button. #11 */
+  usbDac?: string | null;
   current: number | null;
   coexist?: Record<number, number[]>;
   onChanged: () => void;
@@ -36,7 +49,7 @@ export function OutputCard({
   const ids = current != null && !base.includes(current) ? [...base, current] : base;
   const options = OUTPUTS.filter((o) => ids.includes(o.id)).map((o) => ({
     id: String(o.id),
-    label: o.label,
+    label: o.id === 8 ? usbLabel(usbDac) : o.label, // USB button shows the DAC name (#11)
     icon: o.icon,
   }));
 

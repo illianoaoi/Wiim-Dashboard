@@ -3,6 +3,11 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.15] — 2026-08-12
+
+### Changed
+- **The USB output button now shows the connected DAC's name** ([#11](https://github.com/illianoaoi/Wiim-Dashboard/issues/11)) instead of a generic “USB” — taken from `getSoundCardModeSupportList`'s `devName` (trimmed to the device name, with a repeated leading word collapsed and over-long names shortened). Thanks to [@MennoH](https://github.com/MennoH) for the suggestion.
+
 ## [0.3.14] — 2026-08-12
 
 ### Fixed

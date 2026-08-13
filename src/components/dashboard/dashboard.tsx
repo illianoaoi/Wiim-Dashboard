@@ -163,6 +163,7 @@ export function Dashboard({ initialDevices }: { initialDevices: DeviceListItem[]
                   deviceId={did}
                   outputIds={caps.outputs}
                   available={snap.availableOutputs}
+                  usbDac={snap.usbDac}
                   current={snap.output.hardware}
                   coexist={caps.outputCoexist}
                   onChanged={refresh}
