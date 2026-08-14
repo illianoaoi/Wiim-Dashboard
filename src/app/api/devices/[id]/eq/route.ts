@@ -43,6 +43,14 @@ function eqSources(device: Device): { key: string; label: string }[] {
     seen.add(sourceName);
     out.push({ key: sourceName, label });
   }
+  // Headphone-output EQ is a separate, output-scoped target — its source_name is
+  // the output-mode token, not an input. Surface it as its own tab when the
+  // device's GetAcousticCapability reports HeadphoneEQ. Read+write confirmed on a
+  // WiiM Ultra via the standard LV2 source plumbing. #14
+  if (device.capabilities?.acoustic?.headphoneEq) {
+    const key = "AUDIO_OUTPUT_PHONE_JACK_MODE";
+    if (!seen.has(key)) out.push({ key, label: "Headphones" });
+  }
   return out;
 }
 
@@ -88,16 +96,16 @@ const Body = z.discriminatedUnion("action", [
     action: z.literal("setParametric"),
     source: z.string().min(1).max(32),
     letter: Letter,
-    mode: z.number().int().min(-1).max(2).optional(),
+    mode: z.number().int().min(-1).max(5).optional(), // -1 Off, 0 LS, 1 PK, 2 HS, 3 LP, 5 HP (4 unused)
     frequency: z.number().min(PEQ_RANGE.freqMin).max(PEQ_RANGE.freqMax).optional(),
     q: z.number().min(PEQ_RANGE.qMin).max(PEQ_RANGE.qMax).optional(),
     gain: gain.optional(),
   }),
   z.object({ action: z.literal("enable"), source: z.string().min(1).max(32), type: Type, enabled: z.boolean() }),
   z.object({ action: z.literal("loadPreset"), source: z.string().min(1).max(32), type: Type, name: z.string().min(1).max(64) }),
-  z.object({ action: z.literal("savePreset"), source: z.string().min(1).max(32), type: Type, name: z.string().min(1).max(64) }),
+  z.object({ action: z.literal("savePreset"), source: z.string().min(1).max(32), type: Type, name: z.string().min(1).max(64).regex(/^[A-Za-z0-9_]+$/) }),
   z.object({ action: z.literal("deletePreset"), type: Type, name: z.string().min(1).max(64) }),
-  z.object({ action: z.literal("renamePreset"), type: Type, name: z.string().min(1).max(64), newName: z.string().min(1).max(64) }),
+  z.object({ action: z.literal("renamePreset"), type: Type, name: z.string().min(1).max(64), newName: z.string().min(1).max(64).regex(/^[A-Za-z0-9_]+$/) }),
 ]);
 
 export async function POST(req: Request, { params }: Params) {

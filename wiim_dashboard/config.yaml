@@ -1,5 +1,5 @@
 name: WiiM Dashboard
-version: "0.3.15"
+version: "0.3.16"
 slug: wiim_dashboard
 description: Monitor & control WiiM / LinkPlay streamers — now-playing, EQ, sub-out, sources, presets, Last.fm.
 url: "https://github.com/illianoaoi/Wiim-Dashboard"

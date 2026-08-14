@@ -11,6 +11,7 @@ import {
   Disc,
   Usb,
   Headphones,
+  Speaker,
   HelpCircle,
   type LucideProps,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const MAP: Record<string, React.ComponentType<LucideProps>> = {
   Disc,
   Usb,
   Headphones,
+  Speaker,
 };
 
 /** Render a lucide icon by the string name stored in SOURCES/OUTPUTS. */

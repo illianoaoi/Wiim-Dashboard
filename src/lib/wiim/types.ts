@@ -217,6 +217,8 @@ export interface DeviceSnapshot {
   /** live available output hw ids (getSoundCardModeSupportList); volatile — e.g.
    *  USB only appears while a DAC is connected. Undefined if the probe failed. */
   availableOutputs?: number[];
+  /** device-reported output devName per hw id (getSoundCardModeSupportList). */
+  outputNames?: Record<number, string>;
   /** sleep-timer expiry (epoch ms) for this device; null if none. */
   sleepExpiresAt?: number | null;
 }

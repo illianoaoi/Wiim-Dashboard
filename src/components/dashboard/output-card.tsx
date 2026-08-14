@@ -23,6 +23,7 @@ export function OutputCard({
   outputIds,
   available,
   usbDac,
+  outputNames,
   current,
   coexist,
   onChanged,
@@ -34,6 +35,8 @@ export function OutputCard({
   available?: number[];
   /** connected USB-DAC name, used to label the USB output button. #11 */
   usbDac?: string | null;
+  /** device-reported output devName per hw id (amp speaker labelling). #10 */
+  outputNames?: Record<number, string>;
   current: number | null;
   coexist?: Record<number, number[]>;
   onChanged: () => void;
@@ -49,7 +52,12 @@ export function OutputCard({
   const ids = current != null && !base.includes(current) ? [...base, current] : base;
   const options = OUTPUTS.filter((o) => ids.includes(o.id)).map((o) => ({
     id: String(o.id),
-    label: o.id === 8 ? usbLabel(usbDac) : o.label, // USB button shows the DAC name (#11)
+    label:
+      o.id === 8
+        ? usbLabel(usbDac) // USB button shows the DAC name (#11)
+        : o.id === 2 && /speaker/i.test(outputNames?.[2] ?? "")
+          ? "Speaker" // some amp firmware routes the built-in speaker via the Line Out slot (#10)
+          : o.label,
     icon: o.icon,
   }));
 

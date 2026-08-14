@@ -56,6 +56,7 @@ export interface MetaInfo {
   sampleRate: number | null; // Hz
   bitDepth: number | null; // bits
   bitRate: number | null; // kbps
+  actualQuality: string | null; // service-reported quality tier (UPnP GetInfoEx only)
   // Plain-text track metadata — used as a fallback when getPlayerStatusEx
   // leaves Title/Artist empty (e.g. Bluetooth fills these via AVRCP instead).
   title: string | null;
@@ -69,6 +70,7 @@ const EMPTY_META: MetaInfo = {
   sampleRate: null,
   bitDepth: null,
   bitRate: null,
+  actualQuality: null,
   title: null,
   artist: null,
   album: null,
@@ -81,9 +83,19 @@ export async function fetchMetaInfo(ip: string): Promise<MetaInfo> {
     const raw = safeJson<{ metaData?: Record<string, unknown> }>(text);
     const m = raw?.metaData;
     if (!m) return EMPTY_META;
-    const artRaw = typeof m.albumArtURI === "string" ? m.albumArtURI.trim() : "";
+    // Some firmware emits the key with a trailing space ("albumArtURI ").
+    const artStr =
+      typeof m.albumArtURI === "string"
+        ? m.albumArtURI
+        : typeof m["albumArtURI "] === "string"
+          ? (m["albumArtURI "] as string)
+          : "";
+    const artRaw = artStr.trim();
     const artLower = artRaw.toLowerCase();
-    const art = artRaw && artLower !== "unknow" && artLower !== "unknown" ? artRaw : null;
+    const art =
+      artRaw && artLower !== "unknow" && artLower !== "unknown" && artLower !== "un_known"
+        ? artRaw
+        : null;
     // Fields are strings; firmware sometimes reports the literal "unknow".
     const sr = Number(m.sampleRate);
     const bd = Number(m.bitDepth);
@@ -113,6 +125,7 @@ export async function fetchMetaInfo(ip: string): Promise<MetaInfo> {
       sampleRate,
       bitDepth,
       bitRate,
+      actualQuality: null, // getMetaInfo (httpapi) doesn't carry it
       title: cleanMetaText(m.title),
       artist: cleanMetaText(m.artist),
       album: cleanMetaText(m.album),
@@ -155,6 +168,7 @@ export async function fetchTrackMeta(ip: string): Promise<TrackMeta> {
         sampleRate: g.sampleRate,
         bitDepth: g.bitDepth,
         bitRate: g.bitRate,
+        actualQuality: g.actualQuality,
         title: g.title,
         artist: g.artist,
         album: g.album,
@@ -248,13 +262,14 @@ export async function fetchAudioInputEnable(ip: string): Promise<Record<string, 
  */
 export async function fetchSoundCard(
   ip: string,
-): Promise<{ usbDac: string | null; outputs: number[] }> {
+): Promise<{ usbDac: string | null; outputs: number[]; outputNames: Record<number, string> }> {
   try {
     const text = await send(ip, Cmd.getSoundCardModes, 4000);
     const raw = safeJson<unknown>(text);
-    if (!raw) return { usbDac: null, outputs: [] };
+    if (!raw) return { usbDac: null, outputs: [], outputNames: {} };
     let usbDac: string | null = null;
     const outputs = new Set<number>();
+    const outputNames: Record<number, string> = {}; // hw id → device-reported devName
     const walk = (v: unknown): void => {
       if (v == null || typeof v !== "object") return;
       if (Array.isArray(v)) {
@@ -264,25 +279,27 @@ export async function fetchSoundCard(
       const o = v as Record<string, unknown>;
       if (typeof o.mode === "string") {
         const hw = OUTPUT_MODE_NAME_TO_HW[o.mode];
-        if (hw != null) outputs.add(hw);
-        if (o.mode === "AUDIO_OUTPUT_UAC_CARD_MODE" && !usbDac) {
-          // devName is on the entry on some firmware, inside `soundCard` on others
-          const sc = o.soundCard as Record<string, unknown> | undefined;
-          const dn =
-            typeof o.devName === "string"
-              ? o.devName
-              : typeof sc?.devName === "string"
-                ? (sc.devName as string)
-                : null;
-          if (dn) usbDac = dn.split(/\s+at\s+/i)[0]?.trim() || dn.trim();
+        // devName is on the entry on some firmware, inside `soundCard` on others
+        const sc = o.soundCard as Record<string, unknown> | undefined;
+        const devRaw =
+          typeof o.devName === "string"
+            ? o.devName
+            : typeof sc?.devName === "string"
+              ? (sc.devName as string)
+              : null;
+        const devName = devRaw ? devRaw.split(/\s+at\s+/i)[0]?.trim() || devRaw.trim() : null;
+        if (hw != null) {
+          outputs.add(hw);
+          if (devName && !(hw in outputNames)) outputNames[hw] = devName;
         }
+        if (o.mode === "AUDIO_OUTPUT_UAC_CARD_MODE" && !usbDac && devName) usbDac = devName;
       }
       Object.values(o).forEach(walk);
     };
     walk(raw);
-    return { usbDac, outputs: Array.from(outputs) };
+    return { usbDac, outputs: Array.from(outputs), outputNames };
   } catch {
-    return { usbDac: null, outputs: [] };
+    return { usbDac: null, outputs: [], outputNames: {} };
   }
 }
 
@@ -445,7 +462,7 @@ interface RawPreset {
 }
 
 function pickPic(p: Record<string, unknown>): string | null {
-  for (const k of ["picurl", "pic_url", "picUrl", "albumart", "albumArtURI", "img", "image"]) {
+  for (const k of ["picurl", "pic_url", "picUrl", "albumart", "albumArtURI", "albumArtURI ", "img", "image"]) {
     const v = p[k];
     if (typeof v === "string" && v.trim()) return v.trim();
   }

@@ -91,6 +91,16 @@ export function NowPlayingCard({
   // Stream-info block (service / format) — only network & Bluetooth have spare
   // vertical space beneath the cover for it.
   const showStreamInfo = player.sourceKey === "wifi" || player.sourceKey === "bluetooth";
+  // Transport capability per source (#12): line inputs have no track concept;
+  // radio can't skip/seek; cast/AirPlay/BT have no in-app queue (shuffle/repeat).
+  const svcKey = player.service?.key ?? null;
+  const isRadio =
+    svcKey === "tunein" || svcKey === "vtuner" || player.sourceMode === "12" || player.sourceMode === "13";
+  const isLinePhysical = isPhysicalInput && player.sourceKey !== "bluetooth";
+  const timelineActive = player.state === "playing" || player.state === "paused";
+  const canSkip = !isLinePhysical && !isRadio; // network + Bluetooth (AVRCP)
+  const canQueue =
+    player.sourceKey === "wifi" && !isRadio && !["airplay", "dlna", "qplay"].includes(svcKey ?? "");
   // Tint the card + glow the cover with the album art's dominant colour,
   // extracted from the displayed <img> on load (reliable — no separate load).
   const [albumColor, setAlbumColor] = useState<RGB | null>(null);
@@ -457,9 +467,10 @@ export function NowPlayingCard({
             <p className="truncate text-xs text-muted-foreground/70">{player.album}</p>
           )}
 
-          {/* Progress — only for real tracks. Physical inputs (optical/line-in)
-              have no seekable timeline, so the slider is hidden there. */}
-          {!isPhysicalInput && (
+          {/* Progress — only for real tracks that are actually playing/paused.
+              Physical inputs have no seekable timeline; a stopped/loading source
+              would otherwise show a frozen, stale position (#7). */}
+          {!isPhysicalInput && timelineActive && (
             <div className="mt-4">
               <Slider
                 value={Math.min(pos, player.duration || pos)}
@@ -483,28 +494,35 @@ export function NowPlayingCard({
             </div>
           )}
 
-          {/* Transport buttons */}
+          {/* Transport buttons — capability-gated per source (#12). Hidden buttons
+              leave a spacer so play/pause stays centred. */}
           <div className="mt-3 flex items-center justify-between">
-            <button
-              onClick={toggleShuffle}
-              className={cn(
-                "focus-ring grid size-10 place-items-center rounded-full transition",
-                shuffle ? "text-primary" : "text-muted-foreground hover:text-foreground",
-              )}
-              aria-label="Shuffle"
-            >
-              <Shuffle className="size-5" />
-            </button>
+            {canQueue ? (
+              <button
+                onClick={toggleShuffle}
+                className={cn(
+                  "focus-ring grid size-10 place-items-center rounded-full transition",
+                  shuffle ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                )}
+                aria-label="Shuffle"
+              >
+                <Shuffle className="size-5" />
+              </button>
+            ) : (
+              <div className="size-10" aria-hidden="true" />
+            )}
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => void send({ action: "prev" })}
-                disabled={busy}
-                className="focus-ring grid size-12 place-items-center rounded-full text-foreground transition hover:bg-white/8"
-                aria-label="Previous"
-              >
-                <SkipBack className="size-6 fill-current" />
-              </button>
+              {canSkip && (
+                <button
+                  onClick={() => void send({ action: "prev" })}
+                  disabled={busy}
+                  className="focus-ring grid size-12 place-items-center rounded-full text-foreground transition hover:bg-white/8"
+                  aria-label="Previous"
+                >
+                  <SkipBack className="size-6 fill-current" />
+                </button>
+              )}
               <button
                 onClick={() =>
                   void send({ action: "toggle" })
@@ -520,26 +538,32 @@ export function NowPlayingCard({
                   <Play className="size-7 translate-x-0.5 fill-current" />
                 )}
               </button>
-              <button
-                onClick={() => void send({ action: "next" })}
-                disabled={busy}
-                className="focus-ring grid size-12 place-items-center rounded-full text-foreground transition hover:bg-white/8"
-                aria-label="Next"
-              >
-                <SkipForward className="size-6 fill-current" />
-              </button>
+              {canSkip && (
+                <button
+                  onClick={() => void send({ action: "next" })}
+                  disabled={busy}
+                  className="focus-ring grid size-12 place-items-center rounded-full text-foreground transition hover:bg-white/8"
+                  aria-label="Next"
+                >
+                  <SkipForward className="size-6 fill-current" />
+                </button>
+              )}
             </div>
 
-            <button
-              onClick={cycleRepeat}
-              className={cn(
-                "focus-ring grid size-10 place-items-center rounded-full transition",
-                repeat !== "off" ? "text-primary" : "text-muted-foreground hover:text-foreground",
-              )}
-              aria-label={repeat === "one" ? "Repeat one" : repeat === "all" ? "Repeat all" : "Repeat off"}
-            >
-              {repeat === "one" ? <Repeat1 className="size-5" /> : <Repeat className="size-5" />}
-            </button>
+            {canQueue ? (
+              <button
+                onClick={cycleRepeat}
+                className={cn(
+                  "focus-ring grid size-10 place-items-center rounded-full transition",
+                  repeat !== "off" ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                )}
+                aria-label={repeat === "one" ? "Repeat one" : repeat === "all" ? "Repeat all" : "Repeat off"}
+              >
+                {repeat === "one" ? <Repeat1 className="size-5" /> : <Repeat className="size-5" />}
+              </button>
+            ) : (
+              <div className="size-10" aria-hidden="true" />
+            )}
           </div>
 
           {/* Volume */}

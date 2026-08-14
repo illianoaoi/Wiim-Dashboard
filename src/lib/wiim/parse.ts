@@ -153,6 +153,10 @@ export function deriveSource(
   mode: string,
   vendor: string | null,
 ): { sourceMode: string; sourceLabel: string; sourceKey: string | null } {
+  // USB-drive playback is misreported as network mode 10 with vendor "UDiskLocal".
+  if (vendor && vendor.toLowerCase() === "udisklocal") {
+    return { sourceMode: "11", sourceLabel: PLAYING_MODE_LABEL["11"] ?? "USB", sourceKey: "udisk" };
+  }
   const sourceLabel = PLAYING_MODE_LABEL[mode] ?? "Unknown";
   const physicalSourceKey = SOURCES.find((s) => s.modes.includes(mode))?.key ?? null;
   let sourceKey: string | null;
@@ -168,6 +172,25 @@ export function deriveSource(
   return { sourceMode: mode, sourceLabel, sourceKey };
 }
 
+// Some streaming services report curpos/totlen in MICROSECONDS, with no wire
+// flag; and curpos > totlen is a documented garbage reading. Normalise to whole
+// seconds. (Heuristic from @ozbenh's rustywiim.)
+const ALWAYS_MS_MODES = new Set(["1", "2", "10", "20", "11", "42", "51"]);
+const TIMING_MS_THRESHOLD = 36_000_000; // 10h in ms; a larger raw value is µs
+
+function decodeTimingSec(
+  rawPos: number,
+  rawDur: number,
+  mode: string,
+): { position: number; duration: number } {
+  const toMs = (v: number): number =>
+    ALWAYS_MS_MODES.has(mode) || v < TIMING_MS_THRESHOLD ? v : Math.round(v / 1000);
+  const posMs = toMs(rawPos);
+  const durMs = toMs(rawDur);
+  if (durMs > 0 && posMs > durMs) return { position: 0, duration: 0 }; // garbage tick
+  return { position: Math.round(posMs / 1000), duration: Math.round(durMs / 1000) };
+}
+
 export function parsePlayerStatus(raw: Record<string, unknown>): PlayerStatus {
   const statusKey = String(raw.status ?? "stop").toLowerCase();
   const state: PlaybackState =
@@ -179,6 +202,7 @@ export function parsePlayerStatus(raw: Record<string, unknown>): PlayerStatus {
   const { sourceMode, sourceLabel, sourceKey } = deriveSource(String(raw.mode ?? "0"), vendor);
 
   const { repeat, shuffle } = parseLoop(num(raw.loop, 0));
+  const timing = decodeTimingSec(num(raw.curpos), num(raw.totlen), sourceMode);
 
   return {
     state,
@@ -186,8 +210,8 @@ export function parsePlayerStatus(raw: Record<string, unknown>): PlayerStatus {
     artist: decodeMaybeHex(raw.Artist),
     album: decodeMaybeHex(raw.Album),
     albumArt: null, // filled from getMetaInfo
-    position: Math.round(num(raw.curpos) / 1000),
-    duration: Math.round(num(raw.totlen) / 1000),
+    position: timing.position,
+    duration: timing.duration,
     volume: Math.round(num(raw.vol)),
     muted: String(raw.mute) === "1",
     sourceMode,

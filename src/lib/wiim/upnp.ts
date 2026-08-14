@@ -38,6 +38,7 @@ export interface GetInfoExResult {
   sampleRate: number | null;
   bitDepth: number | null;
   bitRate: number | null;
+  actualQuality: string | null; // service-reported tier (TIDAL HI_RES, Qobuz 7/27, Amazon UHD…)
   title: string | null;
   artist: string | null;
   album: string | null;
@@ -150,8 +151,8 @@ const PLAY_MEDIUM_TO_MODE: Record<string, string> = {
   QOBUZ_CONNECT: "36",
   TIDAL_CONNECT: "32",
   "SONGLIST-NETWORK": "10",
-  "STATION-NETWORK": "10",
-  "RADIO-NETWORK": "10",
+  "STATION-NETWORK": "12", // Station
+  "RADIO-NETWORK": "13", // Radio
 };
 function modeFromPlayMedium(medium: string | null): string | null {
   return medium ? (PLAY_MEDIUM_TO_MODE[medium.trim().toUpperCase()] ?? null) : null;
@@ -242,6 +243,7 @@ export function parseGetInfoEx(xml: string): GetInfoExResult {
   const bitDepth = bitDepthRaw === 32 ? 24 : bitDepthRaw; // WiiM packs 24-bit in 32-bit words
   const brRaw = numOrNull(tag(didl, "song:bitrate"));
   const bitRate = brRaw == null ? null : brRaw >= 100000 ? Math.round(brRaw / 1000) : Math.round(brRaw);
+  const actualQuality = cleanText(tag(didl, "song:actualQuality"));
 
   const artRaw = cleanText(tag(didl, "upnp:albumArtURI"));
   const artLower = artRaw?.toLowerCase() ?? "";
@@ -263,6 +265,7 @@ export function parseGetInfoEx(xml: string): GetInfoExResult {
     sampleRate,
     bitDepth,
     bitRate,
+    actualQuality,
     title: cleanText(tag(didl, "dc:title")),
     artist: cleanText(tag(didl, "upnp:artist")),
     album: cleanText(tag(didl, "upnp:album")),

@@ -181,6 +181,7 @@ export const OUTPUTS: OutputDef[] = [
   { id: 1, label: "Optical", icon: "Lightbulb", documented: true },
   { id: 3, label: "Coaxial", icon: "CircleDot", documented: true },
   { id: 4, label: "Headphones", icon: "Headphones", documented: false },
+  { id: 7, label: "Speaker", icon: "Speaker", documented: false }, // amp built-in speaker (WiiM Amp/Amp Ultra hardware:"7")
   { id: 8, label: "USB", icon: "Usb", documented: false }, // USB DAC out (issue #11, @MennoH Ultra)
 ];
 
@@ -191,6 +192,7 @@ export const OUTPUT_MODE_NAME_TO_HW: Record<string, number> = {
   AUDIO_OUTPUT_SPDIF_MODE: 1, // Optical
   AUDIO_OUTPUT_COAX_MODE: 3, // Coaxial
   AUDIO_OUTPUT_PHONE_JACK_MODE: 4, // Headphone
+  AUDIO_OUTPUT_SPEAKER_MODE: 7, // Amp built-in speaker
   AUDIO_OUTPUT_UAC_CARD_MODE: 8, // USB DAC
 };
 

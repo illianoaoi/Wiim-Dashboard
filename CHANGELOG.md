@@ -3,6 +3,25 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.16] — 2026-08-13
+
+A robustness pass from auditing [@ozbenh](https://github.com/ozbenh)'s rustywiim for WiiM/LinkPlay device quirks the dashboard didn't yet handle.
+
+### Added
+- **Headphone EQ** — devices with a dedicated headphone-output EQ (reported by `GetAcousticCapability`) now get a **Headphones** tab in the Equalizer, editable like any source. Read + write confirmed on a WiiM Ultra.
+- **Speaker output** — the built-in speaker of a WiiM **Amp / Amp Ultra** (output mode 7) is now a recognised, selectable output instead of leaving the Output card with nothing highlighted.
+
+### Fixed
+- **Track time was wrong on some services** — position/duration now handle sources that report time in **microseconds** (no wire flag), and ignore the device's documented `position > duration` garbage readings; the timeline is also hidden when nothing is playing (it used to show a frozen, stale position).
+- **USB-drive playback** was shown as "Network" — playback from an attached USB drive (mode 10 + vendor `UDiskLocal`) is now correctly identified as USB.
+- **Missing album art on some devices** — the `albumArtURI` key is read even when the firmware appends a trailing space, and non-URL placeholders like `un_known` are rejected.
+- **Transport controls now match the source** — prev / next / shuffle / repeat / seek appear only where they apply (hidden for line-in / optical / HDMI / phono, radio, and cast / AirPlay) instead of showing but doing nothing.
+- **Low/High-Pass PEQ filters were rejected by the API** — validation capped the filter type below the Low-Pass/High-Pass values added in 0.3.13, so selecting them failed; now accepted.
+- **Phantom input buttons** — `plm_support` is cross-checked against the device's real input list (`getAudioInputEnable`), dropping inputs the device doesn't actually have.
+- **Amp speaker mislabelled "Line Out"** — an amp that routes its speaker through the line-out slot now shows its real name.
+- **EQ preset names** are restricted to letters / numbers / underscores, matching the firmware's fragile name parser.
+- **Hi-res quality badge** — a service's own quality tag (TIDAL HI_RES, Qobuz Hi-Res, Amazon UHD) is trusted, so hi-res streams that fold to 16/44.1 PCM aren't under-labelled as CD-quality.
+
 ## [0.3.15] — 2026-08-12
 
 ### Changed

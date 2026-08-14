@@ -384,6 +384,10 @@ function PresetBar({
       toast("Can't overwrite a built-in preset — choose another name.", "error");
       return;
     }
+    if (!/^[A-Za-z0-9_]+$/.test(name)) {
+      toast("Use letters, numbers, and underscores only.", "error");
+      return;
+    }
     onSave(name);
   }
 
@@ -392,6 +396,10 @@ function PresetBar({
     if (!newName || newName === currentName) return;
     if (isFactory(newName)) {
       toast("That name belongs to a built-in preset.", "error");
+      return;
+    }
+    if (!/^[A-Za-z0-9_]+$/.test(newName)) {
+      toast("Use letters, numbers, and underscores only.", "error");
       return;
     }
     onRename(currentName, newName);

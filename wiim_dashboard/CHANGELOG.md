@@ -2,6 +2,10 @@
 
 Add-on versions track the app image they wrap (`ghcr.io/illianoaoi/wiim-dashboard`).
 
+## 0.3.16
+
+- Tracks app **0.3.16** — device-quirk robustness pass: Headphone EQ, amp Speaker output, position/quality/source decode fixes, source-aware transport controls.
+
 ## 0.3.15
 
 - Tracks app **0.3.15** — the USB output button now shows the connected DAC's name ([#11](https://github.com/illianoaoi/Wiim-Dashboard/issues/11)).
