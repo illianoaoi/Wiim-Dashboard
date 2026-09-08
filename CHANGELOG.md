@@ -7,6 +7,7 @@ follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 - **12-band parametric EQ where the firmware has it** — the band list now follows what the device actually answers with (`a`–`j` = 10 bands, `a`–`l` = 12 on WiiM's mid-2026 firmware) instead of a hardcoded 10, and the API validation accepts the new letters. It never renders *fewer* than 10, so a sparse read can't make a band disappear.
+- **Bit rate / bit depth / sample rate for third-party DLNA senders** — servers like JRiver, Plex and Roon don't send WiiM's own `song:*` metadata extensions, so the quality readout was empty for them. Those facts are now also read from the standard DIDL-Lite `<res>` attributes (with the UPnP spec's bytes-per-second `bitrate` converted, and sanity-checked against the stream's own rate/depth for servers that send bits per second instead).
 - **Lyrics timing nudge** — synced lyrics get a small −/+ control that shifts them in 0.25 s steps when a LRCLIB transcription sits slightly ahead of or behind your release. The offset is remembered per track in that browser; tap the readout to reset.
 
 ### Fixed

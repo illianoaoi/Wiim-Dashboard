@@ -40,6 +40,7 @@ better-sqlite3 (users, sessions, devices, settings)
 | `eq.ts` / `eq-constants.ts` | Per-source **graphic + parametric EQ** over the LV2 API — read/write bands, presets, per-source enable/disable — with a firmware kill-switch |
 | `parse.ts` | Tolerant JSON parse, hex decode, HTML-entity decode, status/source/output mappings + the official (asymmetric) read/write loop-mode tables |
 | `now-playing-info.ts` | Best-effort **service + audio-format detection** — the API has no vendor or codec field, so the service comes from the `getPlayerStatusEx` `mode` (Connect/cast codes) or the album-art host, and the codec/quality tier is inferred from bitrate, bit-depth and sample-rate |
+| `upnp.ts` | UPnP/DLNA `AVTransport GetInfoEx` on port 49152 (SSRF-pinned SOAP) — the **primary now-playing metadata source** since 0.3.8. Double-unescapes the DIDL-Lite payload, tolerates attributes on the open tag, and falls back to the standard `<res>` attributes for senders that don't emit WiiM's `song:*` extensions |
 | `capabilities.ts` | Probes a device once and builds its `DeviceCapabilities` (temperature, sub-out, EQ, outputs, sources, preset count) |
 | `snapshot.ts` | One poll = a parallel `Promise.allSettled` of everything the dashboard needs for a device |
 | `discovery.ts` | SSDP multicast + direct IP-range scan |

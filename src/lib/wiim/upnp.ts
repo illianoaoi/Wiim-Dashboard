@@ -224,6 +224,46 @@ function cleanText(v: string | null): string | null {
   return t || null;
 }
 
+/**
+ * Format facts from the standard DIDL-Lite `<res>` attributes.
+ *
+ * WiiM's own `song:*` extensions are absent when the sender is a third-party
+ * DLNA/UPnP server (JRiver, Plex, Roon…), which instead puts the same facts on
+ * `<res>`. Note UPnP defines `res@bitrate` in **bytes** per second, so it needs
+ * ×8 — but servers do get that wrong, so an implausible result (> 30 Mbps, well
+ * above any audio) is re-read as bits per second.
+ */
+function resFormat(didl: string): {
+  sampleRate: number | null;
+  bitDepth: number | null;
+  bitRate: number | null;
+} {
+  const open = didl.match(/<res\s([^>]*)>/i)?.[1] ?? "";
+  const attr = (name: string): number | null => {
+    const m = open.match(new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`, "i"));
+    const n = Number((m?.[1] ?? "").trim());
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const sampleRate = attr("sampleFrequency");
+  const bitDepth = attr("bitsPerSample");
+  const raw = attr("bitrate");
+  let bitRate: number | null = null;
+  if (raw != null) {
+    // Sanity-check the unit against what uncompressed audio at this rate/depth
+    // would actually be: a value several times larger than that is a server
+    // sending bits per second. Where the DIDL doesn't say (no bitsPerSample),
+    // fall back to rejecting anything above any plausible audio bitrate.
+    const pcmBytesPerSec =
+      sampleRate != null && bitDepth != null
+        ? (sampleRate * bitDepth * (attr("nrAudioChannels") ?? 2)) / 8
+        : null;
+    const looksLikeBits =
+      pcmBytesPerSec != null ? raw > pcmBytesPerSec * 4 : (raw * 8) / 1000 > 30_000;
+    bitRate = looksLikeBits ? Math.round(raw / 1000) : Math.round((raw * 8) / 1000);
+  }
+  return { sampleRate, bitDepth, bitRate };
+}
+
 export function parseGetInfoEx(xml: string): GetInfoExResult {
   const rawState = tag(xml, "CurrentTransportState")?.trim() ?? "";
   const state = STATE_MAP[rawState] ?? null;
@@ -238,11 +278,19 @@ export function parseGetInfoEx(xml: string): GetInfoExResult {
   // recover real DIDL tags (leaf text is then unescaped a SECOND time below).
   const didl = unescapeXml(tag(xml, "TrackMetaData") ?? "");
 
-  const sampleRate = numOrNull(tag(didl, "song:rate_hz"));
-  const bitDepthRaw = numOrNull(tag(didl, "song:format_s"));
+  // WiiM's song:* extensions first; standard <res> attributes as the fallback
+  // for third-party DLNA senders, which don't emit them.
+  const res = resFormat(didl);
+  const sampleRate = numOrNull(tag(didl, "song:rate_hz")) ?? res.sampleRate;
+  const bitDepthRaw = numOrNull(tag(didl, "song:format_s")) ?? res.bitDepth;
   const bitDepth = bitDepthRaw === 32 ? 24 : bitDepthRaw; // WiiM packs 24-bit in 32-bit words
   const brRaw = numOrNull(tag(didl, "song:bitrate"));
-  const bitRate = brRaw == null ? null : brRaw >= 100000 ? Math.round(brRaw / 1000) : Math.round(brRaw);
+  const bitRate =
+    brRaw == null
+      ? res.bitRate
+      : brRaw >= 100000
+        ? Math.round(brRaw / 1000)
+        : Math.round(brRaw);
   const actualQuality = cleanText(tag(didl, "song:actualQuality"));
 
   const artRaw = cleanText(tag(didl, "upnp:albumArtURI"));
