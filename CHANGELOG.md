@@ -3,6 +3,16 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.17] — 2026-09-08
+
+### Added
+- **12-band parametric EQ where the firmware has it** — the band list now follows what the device actually answers with (`a`–`j` = 10 bands, `a`–`l` = 12 on WiiM's mid-2026 firmware) instead of a hardcoded 10, and the API validation accepts the new letters. It never renders *fewer* than 10, so a sparse read can't make a band disappear.
+- **Lyrics timing nudge** — synced lyrics get a small −/+ control that shifts them in 0.25 s steps when a LRCLIB transcription sits slightly ahead of or behind your release. The offset is remembered per track in that browser; tap the readout to reset.
+
+### Fixed
+- **Browser refused to connect over plain http — `SSL_ERROR_RX_RECORD_TOO_LONG`** ([#12](https://github.com/illianoaoi/Wiim-Dashboard/issues/12)) — HSTS and the CSP `upgrade-insecure-requests` directive are now decided from the request's real scheme (`X-Forwarded-Proto` behind a trusted proxy, otherwise the request URL) rather than from the `COOKIE_SECURE` env string, which only treated the exact text `false` as http. `COOKIE_SECURE=0`, `=no` or `=False` therefore still told the browser to upgrade every request on an http-only install. Thanks to [@JoopVerdoorn](https://github.com/JoopVerdoorn) for the report. The FAQ now also covers the other half of that error: Firefox *HTTPS-Only Mode* / Chromium *Always use secure connections* upgrading the URL by themselves.
+- **Proxmox helper script aborted before starting the app** — the `AUTH_SECRET` generator piped `/dev/urandom` into `head`, and the resulting SIGPIPE is fatal under `set -o pipefail`: the script created the LXC and installed Docker, then exited 141 just before `docker run`. It now reads a fixed length with `od`. A failure reading the container's IP also no longer aborts the closing summary.
+
 ## [0.3.16] — 2026-08-13
 
 A robustness pass from auditing [@ozbenh](https://github.com/ozbenh)'s rustywiim for WiiM/LinkPlay device quirks the dashboard didn't yet handle.
