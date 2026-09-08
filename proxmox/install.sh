@@ -69,7 +69,10 @@ pct exec "$CTID" -- bash -euo pipefail -c '
   apt-get update -qq
   apt-get install -y -qq curl ca-certificates >/dev/null
   curl -fsSL https://get.docker.com | sh >/dev/null
-  SECRET="$(tr -dc "A-Za-z0-9" </dev/urandom | head -c 48)"
+  # 48 hex chars (192 bits). Read a fixed length with od instead of piping
+  # /dev/urandom into `head` — head exiting early SIGPIPEs the upstream command,
+  # which `set -o pipefail` turns into a fatal error right before docker run.
+  SECRET="$(od -An -tx1 -N24 /dev/urandom | tr -d " \n")"
   printf "%s\n" "$SECRET" > /root/wiim-auth-secret.txt
   docker run -d --name wiim-dashboard --restart unless-stopped \
     -p '"$PORT"':3000 \
@@ -79,7 +82,8 @@ pct exec "$CTID" -- bash -euo pipefail -c '
     '"$IMAGE"'
 '
 
-IP="$(pct exec "$CTID" -- hostname -I 2>/dev/null | awk '{print $1}')"
+# Best-effort: a failure here must not abort after a successful install.
+IP="$(pct exec "$CTID" -- hostname -I 2>/dev/null | awk '{print $1}' || true)"
 echo
 msg "✅ Done!"
 echo "   Wiim Dashboard → http://${IP:-<container-ip>}:${PORT}"
