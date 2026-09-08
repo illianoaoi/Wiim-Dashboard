@@ -18,7 +18,8 @@ Therefore the device must **never** be exposed to untrusted networks. Wiim Dashb
 ### Device isolation & SSRF protection
 - Only the Next.js server talks to the device; the browser never gets the device address.
 - Every device host is **DNS-resolved, checked against private/LAN IP ranges, and the connection is pinned to the resolved IP** (`src/lib/wiim/client.ts`) — this blocks DNS-rebinding and prevents the proxy from reaching public/internal non-LAN hosts (e.g. cloud metadata).
-- Album/preset artwork is fetched server-side: private targets are restricted to the device's own host; public targets use full TLS verification; size- and content-type-capped.
+- Album/preset artwork is fetched server-side: private targets are restricted to the device's own host; public targets use full TLS verification; size- and content-type-capped. Redirects are never followed.
+- **Trusted artwork hosts** (optional, empty by default) let you name a LAN media server — `host:port` — whose cover art may also be fetched, for setups where the art lives on JRiver / Plex / Roon rather than on the WiiM. Entries must resolve to a private address and are refused if that address is loopback, link-local (including cloud-metadata `169.254.169.254`), `0.0.0.0/8` or CGNAT space; the check runs again at request time, so a name that later resolves somewhere sensitive is still blocked. An allowlisted host is reached with certificate verification relaxed (LAN servers are usually self-signed) but **without** the client certificate, and its response is still only ever served as a size-capped image.
 - Destructive WiiM commands (reboot, shutdown, factory reset) are **not** implemented/proxied.
 
 ### Authentication

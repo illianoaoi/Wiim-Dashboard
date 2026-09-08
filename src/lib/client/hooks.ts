@@ -48,6 +48,8 @@ type SettingsResponse = {
   app: { pollIntervalMs: number };
   cards: CardVisibility;
   lastfm: LastfmStatus;
+  /** Trusted artwork hosts ("host:port"); empty means device-only artwork. */
+  artHosts: string[];
 };
 
 export function useSettings() {

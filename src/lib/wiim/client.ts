@@ -55,6 +55,24 @@ function getDeviceAgent(): https.Agent {
   return deviceAgent;
 }
 
+let insecureAgent: https.Agent | null = null;
+
+/**
+ * TLS agent for an allowlisted third-party artwork host: verification disabled
+ * (LAN media servers routinely use self-signed certs) but **no client cert** —
+ * the LinkPlay key belongs to the device conversation only, and a user may have
+ * swapped in their own via WIIM_CLIENT_CERT_PATH.
+ */
+function getInsecureAgent(): https.Agent {
+  insecureAgent ??= new https.Agent({
+    rejectUnauthorized: false,
+    keepAlive: true,
+    maxSockets: 4,
+    timeout: 10_000,
+  });
+  return insecureAgent;
+}
+
 /** True for loopback / RFC1918 / link-local / ULA addresses. */
 export function isPrivateIp(ip: string): boolean {
   if (net.isIPv4(ip)) {
@@ -76,6 +94,66 @@ export function isPrivateIp(ip: string): boolean {
     return false;
   }
   return false;
+}
+
+/**
+ * Addresses that must stay unreachable through the artwork allowlist even
+ * though `isPrivateIp` counts them as private: cloud metadata services, the
+ * container itself, and carrier-grade NAT space. The device's own host is
+ * exempt — it is already the one host we're required to talk to.
+ */
+export function isSensitiveIp(ip: string): boolean {
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split(".").map(Number);
+    if (a === 127 || a === 0) return true; // loopback / "this host"
+    if (a === 169 && b === 254) return true; // link-local, incl. cloud metadata
+    if (a === 100 && b !== undefined && b >= 64 && b <= 127) return true; // CGNAT
+    return false;
+  }
+  if (net.isIPv6(ip)) {
+    const l = ip.toLowerCase();
+    if (l === "::1" || l === "::") return true;
+    const mapped = l.match(/::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    if (mapped) return isSensitiveIp(mapped[1]!);
+    return /^fe[89ab]/.test(l); // link-local
+  }
+  return true; // not an address at all — refuse
+}
+
+/**
+ * Normalise one trusted-artwork-host entry to `host:port`. A port is required:
+ * the allowlist is meant to name one media server, not open a whole host.
+ * Tolerates a pasted scheme or trailing path so users can paste a URL.
+ */
+export function normaliseArtHost(entry: string): string | null {
+  const s = entry
+    .trim()
+    .toLowerCase()
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//, "")
+    .replace(/[/?#].*$/, "");
+  const m = s.match(/^(\[[0-9a-f:.]+\]|[a-z0-9._-]+):(\d{1,5})$/);
+  if (!m) return null;
+  const port = Number(m[2]);
+  if (port < 1 || port > 65535) return null;
+  return `${m[1]}:${port}`;
+}
+
+/** The `host:port` key a URL is matched against (default ports made explicit). */
+export function artHostKey(u: URL): string {
+  const port = u.port || (u.protocol === "http:" ? "80" : "443");
+  return `${u.hostname.toLowerCase()}:${port}`;
+}
+
+const refusedArtHosts = new Set<string>();
+
+/** Tell the operator once per host what to allowlist — the art route itself
+ *  swallows the failure and serves a blank image, so this is the only signal. */
+function warnRefusedArtHost(key: string): void {
+  if (refusedArtHosts.has(key)) return;
+  refusedArtHosts.add(key);
+  console.warn(
+    `[wiim] artwork host not allowed: ${key} — add it under Settings → Artwork hosts to show this cover art`,
+  );
 }
 
 /** String-level acceptance used when ADDING a device (hostnames allowed). The
@@ -281,21 +359,37 @@ function sniffImageType(buf: Buffer): string | null {
 
 /**
  * Fetch album art. SSRF policy:
- *  - A PRIVATE/LAN target is only allowed if it is the device's own host
- *    (its art server) — blocks pivoting to other internal hosts / metadata.
+ *  - A PRIVATE/LAN target is only allowed if it is the device's own host (its
+ *    art server), or a `host:port` the operator has explicitly added to the
+ *    trusted-artwork-host allowlist (empty by default) — blocks pivoting to
+ *    other internal hosts. An allowlisted entry is re-checked against the deny
+ *    list at request time, so a name that later resolves into metadata or
+ *    loopback space is still refused (DNS rebinding).
  *  - A PUBLIC target (streaming-service cover art) is allowed with normal TLS
  *    verification. Either way the connection is pinned to the validated IP.
+ *
+ * Redirects are never followed, the body is capped, and the caller only ever
+ * serves the result as an image — so an allowlisted host can't become a proxy.
  */
 export async function wiimFetchRaw(
   url: string,
-  opts: { deviceHost: string; timeoutMs?: number },
+  opts: { deviceHost: string; allowHosts?: readonly string[]; timeoutMs?: number },
 ): Promise<{ status: number; body: Buffer; contentType: string }> {
   const u = new URL(url);
   const target = await resolveTarget(u.hostname);
+  const isDevice = u.hostname.toLowerCase() === opts.deviceHost.trim().toLowerCase();
 
-  if (target.isPrivate) {
-    if (u.hostname.toLowerCase() !== opts.deviceHost.trim().toLowerCase()) {
-      throw new WiimError(`Refusing internal art host: ${u.hostname}`, "FORBIDDEN_HOST");
+  if (target.isPrivate && !isDevice) {
+    const key = artHostKey(u);
+    if (!opts.allowHosts?.includes(key)) {
+      warnRefusedArtHost(key);
+      throw new WiimError(`Refusing internal art host: ${key}`, "FORBIDDEN_HOST");
+    }
+    if (isSensitiveIp(target.ip)) {
+      throw new WiimError(
+        `Refusing sensitive art target: ${key} resolved to ${target.ip}`,
+        "FORBIDDEN_HOST",
+      );
     }
   }
 
@@ -314,9 +408,16 @@ export async function wiimFetchRaw(
       method: "GET",
       signal: controller.signal,
     };
-    // The device's own https art is self-signed → device agent. Public https
-    // cover art uses the default agent with full certificate verification.
-    if (!isHttp) reqOpts.agent = target.isPrivate ? getDeviceAgent() : undefined;
+    // The device's own https art is self-signed → device agent (mTLS). An
+    // allowlisted LAN host gets self-signed tolerance but no client cert.
+    // Public https cover art uses the default agent, fully verified.
+    if (!isHttp) {
+      reqOpts.agent = target.isPrivate
+        ? isDevice
+          ? getDeviceAgent()
+          : getInsecureAgent()
+        : undefined;
+    }
     if (!target.isLiteral) reqOpts.lookup = pinnedLookup(target.ip, target.family);
 
     const req = lib.request(reqOpts, (res: http.IncomingMessage) => {

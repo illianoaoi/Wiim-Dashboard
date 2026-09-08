@@ -6,12 +6,17 @@ import {
   getSetting,
   setSetting,
   getLastfm,
+  getArtHosts,
+  setArtHosts,
   SettingKeys,
   DEFAULT_CARDS,
+  MAX_ART_HOSTS,
   type TurnstileSettings,
   type AppSettings,
   type CardVisibility,
 } from "@/lib/db/settings";
+import { apiError } from "@/lib/api";
+import { normaliseArtHost, resolveTarget, isSensitiveIp } from "@/lib/wiim/client";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +49,40 @@ const PatchSchema = z.object({
     })
     .partial()
     .optional(),
+  // Trusted artwork hosts, as typed by the operator; normalised + resolved
+  // below (zod can't do the DNS check, and it must run before we store them).
+  artHosts: z.array(z.string().trim().max(120)).max(MAX_ART_HOSTS).optional(),
 });
+
+/**
+ * Accept a trusted-artwork-host entry only if it names a real private address
+ * that isn't somewhere sensitive. This is the gate that keeps the allowlist
+ * from becoming a hole: `isPrivateIp` alone would happily accept
+ * 169.254.169.254 (cloud metadata) or 127.0.0.1 (this container).
+ */
+async function validateArtHosts(input: string[]): Promise<{ hosts: string[] } | { error: string }> {
+  const hosts: string[] = [];
+  for (const raw of input) {
+    if (!raw.trim()) continue;
+    const key = normaliseArtHost(raw);
+    if (!key) return { error: `Not a valid host:port — "${raw}" (e.g. 192.168.1.5:52199)` };
+    const host = key.slice(0, key.lastIndexOf(":")).replace(/^\[|\]$/g, "");
+    let target;
+    try {
+      target = await resolveTarget(host);
+    } catch {
+      return { error: `Can't resolve "${host}"` };
+    }
+    if (!target.isPrivate) {
+      return { error: `"${host}" is not a private/LAN address — only LAN media servers can be trusted here` };
+    }
+    if (isSensitiveIp(target.ip)) {
+      return { error: `"${host}" resolves to ${target.ip}, which is not allowed (loopback / link-local / metadata)` };
+    }
+    if (!hosts.includes(key)) hosts.push(key);
+  }
+  return { hosts };
+}
 
 /** Return settings with the Turnstile secret redacted. */
 export async function GET(req: Request) {
@@ -56,6 +94,7 @@ export async function GET(req: Request) {
   const cards = { ...DEFAULT_CARDS, ...getSetting<Partial<CardVisibility>>(SettingKeys.cards, {}) };
   const lf = getLastfm();
   return json({
+    artHosts: getArtHosts(),
     turnstile: {
       enabled: turnstile?.enabled ?? false,
       siteKey: turnstile?.siteKey ?? "",
@@ -94,6 +133,12 @@ export async function PATCH(req: Request) {
 
   if (parsed.data.app) {
     setSetting(SettingKeys.app, parsed.data.app);
+  }
+
+  if (parsed.data.artHosts) {
+    const checked = await validateArtHosts(parsed.data.artHosts);
+    if ("error" in checked) return apiError(400, checked.error, "BAD_ART_HOST");
+    setArtHosts(checked.hosts);
   }
 
   if (parsed.data.cards) {

@@ -28,6 +28,11 @@ Any WiiM / LinkPlay device with the `httpapi.asp` HTTP API: WiiM **Mini, Pro, Pr
 ## Why is the album art blank for some tracks?
 Local / NAS / USB files often don't expose embedded cover art through the WiiM API. The dashboard now falls back to looking the cover up by artist + album (iTunes, keyless) — so most local tracks get art. If a specific album isn't found, it stays blank. Streaming sources (Tidal/Qobuz/Spotify/AirPlay) almost always provide art directly. Disable external lookups with `WIIM_ARTWORK_FALLBACK=false`.
 
+## Album art is blank when I stream from JRiver / Plex / Roon
+Those senders advertise their cover art as a URL **on the media-server machine**, not on the WiiM. By default the dashboard only fetches LAN artwork from the WiiM device itself — letting the server fetch arbitrary internal addresses on request is a classic SSRF hole, so it isn't on by default.
+
+Since 0.3.17 you can opt in for your own server: **Settings → Artwork hosts**, add the exact `host:port` its art URLs use (e.g. `192.168.1.5:52199`). If a cover stays blank, the container log names the host it refused, so you can copy it from there. Only private/LAN addresses are accepted, and loopback / link-local / cloud-metadata addresses are refused even if you type them.
+
 ## Can it tell me if a track is AI-generated?
 **No.** The dashboard only shows what the device/streaming service reports (title, artist, album, quality). None of them expose an "AI-generated" flag, and detecting AI music from the audio alone is an unsolved problem. If services start tagging it in metadata, it could be surfaced then.
 

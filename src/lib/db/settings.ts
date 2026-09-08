@@ -67,7 +67,28 @@ export const SettingKeys = {
   sourceLabels: "sourceLabels",
   cards: "cards",
   lastfm: "lastfm",
+  artHosts: "artHosts",
 } as const;
+
+/**
+ * Trusted artwork hosts — `host:port` entries whose cover art the server may
+ * fetch even though they are LAN addresses (a local media server: JRiver, Plex,
+ * Roon…). Empty by default: without an entry, LAN artwork is only fetched from
+ * the WiiM device itself. Entries are validated on write (must resolve to a
+ * private address that is not loopback / link-local / metadata / CGNAT) and
+ * re-checked at request time. See wiim/client.ts `wiimFetchRaw`.
+ */
+export const MAX_ART_HOSTS = 8;
+
+export function getArtHosts(): string[] {
+  const raw = getSetting<unknown>(SettingKeys.artHosts, []);
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((h): h is string => typeof h === "string").slice(0, MAX_ART_HOSTS);
+}
+
+export function setArtHosts(hosts: string[]): void {
+  setSetting(SettingKeys.artHosts, hosts.slice(0, MAX_ART_HOSTS));
+}
 
 /**
  * Last.fm integration. `apiKey`/`apiSecret` are the registered app credentials;

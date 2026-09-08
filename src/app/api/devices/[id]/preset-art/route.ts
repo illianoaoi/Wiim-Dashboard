@@ -3,6 +3,7 @@ import { guard, apiError } from "@/lib/api";
 import { resolveDevice } from "@/lib/device-route";
 import { fetchPresetArtUrl } from "@/lib/wiim/commands";
 import { wiimFetchRaw } from "@/lib/wiim/client";
+import { getArtHosts } from "@/lib/db/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,11 @@ export async function GET(req: Request, { params }: Params) {
   try {
     const url = await fetchPresetArtUrl(r.device.host, index);
     if (!url) return fallback();
-    const res = await wiimFetchRaw(url, { deviceHost: r.device.host, timeoutMs: 7000 });
+    const res = await wiimFetchRaw(url, {
+      deviceHost: r.device.host,
+      allowHosts: getArtHosts(),
+      timeoutMs: 7000,
+    });
     if (res.status >= 400 || !res.contentType.startsWith("image/")) return fallback();
     if (artCache.size > 200) artCache.clear();
     artCache.set(cacheKey, { at: Date.now(), body: res.body, contentType: res.contentType });

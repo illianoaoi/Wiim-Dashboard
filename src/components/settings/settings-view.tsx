@@ -13,6 +13,9 @@ import {
   Radio,
   Heart,
   Link as LinkIcon,
+  Image as ImageIcon,
+  Plus,
+  X,
 } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +34,7 @@ export function SettingsView({ totpEnabled }: { totpEnabled: boolean }) {
       <ChangePassword />
       <TwoFactor enabled={totpEnabled} />
       <TurnstileSettings />
+      <ArtworkHosts />
       <GeneralSettings />
     </div>
   );
@@ -478,6 +482,91 @@ function TurnstileSettings() {
         </Field>
         <Button onClick={() => void save()} disabled={busy}>
           {busy ? <Spinner /> : <Save className="size-5" />} Save
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Trusted artwork hosts. Cover art served by a local media server (JRiver,
+ * Plex, Roon…) lives on that machine, not on the WiiM — and the server refuses
+ * LAN artwork from anywhere but the device itself, because fetching arbitrary
+ * internal URLs on request is how SSRF happens. This is the opt-in exception,
+ * one `host:port` at a time. Validation lives in the API route.
+ */
+function ArtworkHosts() {
+  const toast = useToast();
+  const { settings, mutate } = useSettings();
+  const [entry, setEntry] = useState("");
+  const [busy, setBusy] = useState(false);
+  const hosts = settings?.artHosts ?? [];
+
+  async function save(next: string[], okMessage: string) {
+    setBusy(true);
+    try {
+      await apiSend("/api/settings", "PATCH", { artHosts: next });
+      await mutate();
+      setEntry("");
+      toast(okMessage, "success");
+    } catch (e) {
+      toast((e as ApiError).message || "Could not save", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="p-5">
+      <CardHeader
+        icon={<ImageIcon className="size-4" />}
+        title="Artwork hosts"
+        className="px-0 pt-0"
+      />
+      <div className="mt-4 space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Album art from a media server on your network (JRiver, Plex, Roon…) is not fetched unless
+          you name the server here — the dashboard only trusts artwork from the WiiM device itself.
+          Add the exact <span className="font-medium text-foreground">host:port</span> its art URLs
+          use; if a cover stays blank, the container log names the host it refused.
+        </p>
+        {hosts.length > 0 && (
+          <ul className="space-y-2">
+            {hosts.map((h) => (
+              <li
+                key={h}
+                className="flex items-center justify-between rounded-xl border border-border px-3 py-2"
+              >
+                <span className="truncate text-sm text-foreground">{h}</span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void save(hosts.filter((x) => x !== h), `Removed ${h}`)}
+                  aria-label={`Remove ${h}`}
+                  title={`Remove ${h}`}
+                  className="rounded-lg p-1 text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Field
+          label="Add a host"
+          hint="LAN addresses only — loopback, link-local and cloud-metadata addresses are rejected."
+        >
+          <Input
+            value={entry}
+            onChange={(e) => setEntry(e.target.value)}
+            placeholder="192.168.1.5:52199"
+          />
+        </Field>
+        <Button
+          onClick={() => void save([...hosts, entry], `Trusting artwork from ${entry.trim()}`)}
+          disabled={busy || !entry.trim()}
+        >
+          {busy ? <Spinner /> : <Plus className="size-5" />} Add host
         </Button>
       </div>
     </Card>
