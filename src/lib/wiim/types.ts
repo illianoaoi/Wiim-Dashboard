@@ -104,7 +104,7 @@ export interface GraphicBand {
 }
 
 export interface ParametricBand {
-  letter: string; // a–j
+  letter: string; // a–j (a–l on firmware that exposes 12 bands)
   mode: number; // -1 off, 0 low-shelf, 1 peak, 2 high-shelf
   frequency: number; // Hz
   q: number;

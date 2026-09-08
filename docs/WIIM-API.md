@@ -109,7 +109,9 @@ Generic in-app network streaming is **mode `10`/`20`** (and a few neighbours) �
 
 ### Per-source graphic + parametric EQ (LV2) _(community-verified; WiiM Ultra fw5.2+)_
 
-Newer firmware exposes a per-source **LV2** EQ — a 10-band graphic (`Eq10HP`) and a 10-band parametric (`EqNp`, bands `a`–`j`) — returning real dB/Hz. Plugin URIs: `http://moddevices.com/plugins/caps/Eq10HP` and `…/EqNp`.
+Newer firmware exposes a per-source **LV2** EQ — a 10-band graphic (`Eq10HP`) and a parametric (`EqNp`) — returning real dB/Hz. Plugin URIs: `http://moddevices.com/plugins/caps/Eq10HP` and `…/EqNp`.
+
+The **parametric band count is per firmware, not fixed**: bands `a`–`j` (10) on the firmware this was first mapped on, `a`–`l` (12) on WiiM's mid-2026 firmware. Each band is four `param_name`s — `<letter>_mode`, `_freq`, `_q`, `_gain` — so the dashboard reads the letters out of the response rather than assuming a count (never fewer than 10, so a sparse read can't drop a band).
 
 | Purpose | Command |
 |---|---|

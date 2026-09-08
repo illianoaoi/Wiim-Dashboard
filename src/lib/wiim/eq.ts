@@ -5,7 +5,7 @@ import {
   EqCmd,
   EQ_PLUGIN,
   GRAPHIC_BANDS,
-  PEQ_LETTERS,
+  peqLettersFrom,
   PEQ_DEFAULT_FREQ,
   CHANNEL_MODE_STEREO,
 } from "./eq-constants";
@@ -66,7 +66,8 @@ function parseGraphic(raw: RawEq): { name: string; bands: GraphicBand[] } {
 
 function toParametricBands(arr: EqBandArray | undefined): ParametricBand[] {
   const m = bandMapFrom(arr);
-  return PEQ_LETTERS.map((l) => ({
+  // Band count follows what the device answered with (10 or 12 bands).
+  return peqLettersFrom(m.keys()).map((l) => ({
     letter: l,
     mode: Math.round(m.get(`${l}_mode`) ?? 1),
     frequency: m.get(`${l}_freq`) ?? PEQ_DEFAULT_FREQ[l] ?? 1000,

@@ -90,7 +90,7 @@ const Body = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("setGraphic"),
     source: z.string().min(1).max(32),
-    bands: z.array(z.object({ param: ParamName, gain })).min(1).max(10),
+    bands: z.array(z.object({ param: ParamName, gain })).min(1).max(GRAPHIC_BANDS.length),
   }),
   z.object({
     action: z.literal("setParametric"),

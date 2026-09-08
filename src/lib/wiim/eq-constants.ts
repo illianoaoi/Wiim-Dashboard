@@ -33,8 +33,43 @@ export const GRAPHIC_BANDS: { param: string; label: string }[] = [
 
 export const GRAPHIC_GAIN = { min: -12, max: 12, step: 0.5 } as const;
 
-/** Parametric: 10 bands a–j with default 1-octave frequencies. */
-export const PEQ_LETTERS = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"] as const;
+/**
+ * Parametric band letters the firmware may expose. Devices shipped with 10
+ * bands (a–j); WiiM's mid-2026 firmware (Ultra 5.2.8x) answers with 12 (a–l).
+ * The rendered set comes from what the device actually lists — see
+ * `toParametricBands` in eq.ts — so this is the *accepted* set, not the count.
+ */
+export const PEQ_LETTERS = [
+  "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l",
+] as const;
+
+/**
+ * The 10 bands every supported firmware has. Always rendered, even if a device
+ * omits a band from its read (a band that's off can come back sparse), so the
+ * user can never lose a band from the UI — only gain the newer k/l.
+ */
+export const PEQ_LETTERS_BASELINE: readonly string[] = PEQ_LETTERS.slice(0, 10);
+
+const PEQ_LETTER_SET: ReadonlySet<string> = new Set(PEQ_LETTERS);
+const PEQ_PARAM_KEY = /^([a-z])_(mode|freq|q|gain)$/;
+
+/**
+ * Which parametric bands a device exposes, read from the `param_name`s it
+ * answered with (`a_mode`, `a_freq`, …) instead of assumed: 10 bands (a–j) on
+ * older firmware, 12 (a–l) on WiiM's mid-2026 firmware.
+ *
+ * Unioned with the 10-band baseline, so a device can only ever *add* bands to
+ * the UI — a sparse read (a band that's off coming back without params) must
+ * not make its row disappear.
+ */
+export function peqLettersFrom(paramNames: Iterable<string>): readonly string[] {
+  const found = new Set<string>();
+  for (const key of paramNames) {
+    const hit = PEQ_PARAM_KEY.exec(key);
+    if (hit && PEQ_LETTER_SET.has(hit[1]!)) found.add(hit[1]!);
+  }
+  return PEQ_LETTERS.filter((l) => found.has(l) || PEQ_LETTERS_BASELINE.includes(l));
+}
 
 export const PEQ_DEFAULT_FREQ: Record<string, number> = {
   a: 31.25, b: 62.5, c: 125, d: 250, e: 500, f: 1000, g: 2000, h: 4000, i: 8000, j: 16000,
