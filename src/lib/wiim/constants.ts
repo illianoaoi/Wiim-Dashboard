@@ -135,6 +135,17 @@ export const NETWORK_PLAY_MODES = new Set([
 ]);
 
 /**
+ * Sources that play *media* — a file or stream with real metadata: cover art, a
+ * duration to scrub, and a queue to skip through. Everything else is a line
+ * input that merely carries audio (Bluetooth sits in between: no queue, but
+ * AVRCP skip + track names).
+ *
+ * USB-drive and CD playback are local, not network, yet they are media sources:
+ * treating them like a line input hides their art, timeline and skip buttons.
+ */
+export const MEDIA_SOURCE_KEYS: ReadonlySet<string> = new Set(["wifi", "udisk", "cd"]);
+
+/**
  * Selectable input sources. `bit` matches the plm_support bitmask in
  * getStatusEx (when present, used to detect what a device actually has).
  * `value` is the case-sensitive switchmode argument.

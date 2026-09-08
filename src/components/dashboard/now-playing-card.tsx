@@ -28,7 +28,7 @@ import { StepperSlider } from "@/components/ui/stepper-slider";
 import { useToast } from "@/components/toast";
 import { apiSend, apiGet, ApiError } from "@/lib/client/api";
 import { formatTime, cn } from "@/lib/utils";
-import { SOURCES } from "@/lib/wiim/constants";
+import { SOURCES, MEDIA_SOURCE_KEYS } from "@/lib/wiim/constants";
 import { DynIcon } from "@/components/ui/icon";
 import { ServiceLogo } from "@/components/ui/service-logo";
 import { VinylDisc } from "./vinyl-disc";
@@ -83,10 +83,12 @@ export function NowPlayingCard({
       (sourceLabels?.[player.sourceKey]?.trim() ||
         autoSourceLabels?.[player.sourceKey]?.trim())) ||
     player.sourceLabel;
-  // Physical inputs (Optical, Line-in, Coax, HDMI, Phono…) don't carry cover
-  // art — show the source icon instead of a stale/blank image. Only
-  // network/streaming sources display album art.
-  const isPhysicalInput = !!player.sourceKey && player.sourceKey !== "wifi";
+  // Line inputs (Optical, Line-in, Coax, HDMI, Phono…) don't carry cover art —
+  // show the source icon instead of a stale/blank image. Media sources (network,
+  // USB drive, CD) do: art, a timeline and a queue. USB/CD are local but are
+  // still media, so they must not fall into the line-input branch.
+  const isMediaSource = player.sourceKey == null || MEDIA_SOURCE_KEYS.has(player.sourceKey);
+  const isPhysicalInput = !isMediaSource;
   const showArt = !!player.albumArt && !isPhysicalInput;
   // Stream-info block (service / format) — only network & Bluetooth have spare
   // vertical space beneath the cover for it.
@@ -100,7 +102,10 @@ export function NowPlayingCard({
   const timelineActive = player.state === "playing" || player.state === "paused";
   const canSkip = !isLinePhysical && !isRadio; // network + Bluetooth (AVRCP)
   const canQueue =
-    player.sourceKey === "wifi" && !isRadio && !["airplay", "dlna", "qplay"].includes(svcKey ?? "");
+    player.sourceKey != null &&
+    MEDIA_SOURCE_KEYS.has(player.sourceKey) &&
+    !isRadio &&
+    !["airplay", "dlna", "qplay"].includes(svcKey ?? "");
   // Tint the card + glow the cover with the album art's dominant colour,
   // extracted from the displayed <img> on load (reliable — no separate load).
   const [albumColor, setAlbumColor] = useState<RGB | null>(null);
