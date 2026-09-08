@@ -158,16 +158,23 @@ export function deriveSource(
     return { sourceMode: "11", sourceLabel: PLAYING_MODE_LABEL["11"] ?? "USB", sourceKey: "udisk" };
   }
   const sourceLabel = PLAYING_MODE_LABEL[mode] ?? "Unknown";
-  const physicalSourceKey = SOURCES.find((s) => s.modes.includes(mode))?.key ?? null;
+  // Match a specific input FIRST: the "wifi" entry claims every network mode,
+  // and a few of those belong to a more specific source — modes 11/21 are the
+  // USB drive (the device labels them "USB"), which would otherwise resolve to
+  // the network source and light up the wrong button in the Source card.
+  const physicalSourceKey =
+    SOURCES.find((s) => s.key !== "wifi" && s.modes.includes(mode))?.key ?? null;
   let sourceKey: string | null;
-  if (NETWORK_PLAY_MODES.has(mode)) {
+  if (physicalSourceKey) {
+    sourceKey = physicalSourceKey;
+  } else if (NETWORK_PLAY_MODES.has(mode)) {
     sourceKey = "wifi";
-  } else if (vendor && !physicalSourceKey) {
+  } else if (vendor) {
     // A vendor push on a non-physical mode is a network/cast session — treat it
     // as the network source so art / stream-info / service detection light up.
     sourceKey = "wifi";
   } else {
-    sourceKey = physicalSourceKey;
+    sourceKey = null;
   }
   return { sourceMode: mode, sourceLabel, sourceKey };
 }
@@ -183,8 +190,15 @@ function decodeTimingSec(
   rawDur: number,
   mode: string,
 ): { position: number; duration: number } {
-  const toMs = (v: number): number =>
-    ALWAYS_MS_MODES.has(mode) || v < TIMING_MS_THRESHOLD ? v : Math.round(v / 1000);
+  // The unit is a property of the response, not of each field, so decide it
+  // ONCE — from the duration, which is the reliable signal (any real duration
+  // in ms is far below the threshold) — and apply it to both values. Deciding
+  // per field read a small position as ms while the large duration read as µs:
+  // the two then disagreed by 1000×, the guard below binned the whole reading,
+  // and the timeline stayed empty for the first 36 s of every track.
+  const isMicroseconds =
+    !ALWAYS_MS_MODES.has(mode) && Math.max(rawDur, rawPos) >= TIMING_MS_THRESHOLD;
+  const toMs = (v: number): number => (isMicroseconds ? Math.round(v / 1000) : v);
   const posMs = toMs(rawPos);
   const durMs = toMs(rawDur);
   if (durMs > 0 && posMs > durMs) return { position: 0, duration: 0 }; // garbage tick
