@@ -268,7 +268,8 @@ src/
 
 | Symptom | Fix |
 |---|---|
-| **Blank/white page over http** | Set `COOKIE_SECURE=false` (CSP `upgrade-insecure-requests`/HSTS are disabled in this mode). Behind https, leave it unset. |
+| **Blank/white page over http** | Fixed in 0.3.17 — HSTS / `upgrade-insecure-requests` now follow the request's real scheme, so plain http is never force-upgraded. (Still set `COOKIE_SECURE=false` over http so the session cookie isn't `Secure`.) |
+| **`SSL_ERROR_RX_RECORD_TOO_LONG` / browser won't connect** | Your browser upgraded the URL to https, but the dashboard serves plain http (no certificate on our side). Turn off Firefox *HTTPS-Only Mode* / Chromium *Always use secure connections* for the host, or front it with an https reverse proxy — see the [FAQ](docs/FAQ.md). |
 | **Login doesn't persist over LAN IP** | Cookies are `Secure` by default — use `https` (proxy) or `COOKIE_SECURE=false` for testing. |
 | **`/api/auth/session` 500 on first run** | A host bind-mount for `/data` is root-owned on Linux; this project uses a **named volume** to avoid it. Don't switch `/data` back to a bind-mount. |
 | **LAN scan finds nothing** | Set the range to match your subnet (e.g. `192.168.0.0/24`); or add by IP. SSDP needs host networking. |

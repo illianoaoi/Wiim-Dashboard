@@ -12,12 +12,38 @@ function makeNonce(): string {
   return btoa(bin);
 }
 
+/** Parse a boolean env var exactly like `src/lib/config.ts` does. */
+function envBool(v: string | undefined, fallback: boolean): boolean {
+  if (v == null) return fallback;
+  return ["1", "true", "yes", "on"].includes(v.toLowerCase());
+}
+
+/**
+ * Did THIS request arrive over https?
+ *
+ * HSTS and CSP `upgrade-insecure-requests` may only be sent on an https
+ * response. Sent over plain http they tell the browser to re-fetch every
+ * subresource over TLS from a port that speaks none — a white page, or
+ * `SSL_ERROR_RX_RECORD_TOO_LONG` in Firefox.
+ *
+ * Deriving this from the request itself (rather than from the COOKIE_SECURE env
+ * string, which only counted the exact text "false" as http) removes a footgun:
+ * `COOKIE_SECURE=0`, `=no` or `=False` silently re-enabled both headers on a
+ * plain-http deployment. See issue #12.
+ */
+function isHttpsRequest(req: NextRequest): boolean {
+  // Behind a trusted reverse proxy the edge scheme only shows up in the header.
+  if (envBool(process.env.TRUST_PROXY, true)) {
+    const fwd = req.headers.get("x-forwarded-proto");
+    if (fwd) return fwd.split(",")[0]!.trim().toLowerCase() === "https";
+  }
+  return req.nextUrl.protocol === "https:";
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isDev = process.env.NODE_ENV !== "production";
-  // When served over plain http (LAN testing), don't force-upgrade subresources
-  // to https or send HSTS — that would break script/style loading (white page).
-  const httpsMode = process.env.COOKIE_SECURE !== "false";
+  const httpsMode = isHttpsRequest(request);
   const nonce = makeNonce();
 
   const csp = [
@@ -51,14 +77,14 @@ export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = pathname && pathname !== "/" ? `?next=${encodeURIComponent(pathname)}` : "";
-    return applySecurity(NextResponse.redirect(url), csp);
+    return applySecurity(NextResponse.redirect(url), csp, httpsMode);
   }
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
-  return applySecurity(response, csp);
+  return applySecurity(response, csp, httpsMode);
 }
 
-function applySecurity(res: NextResponse, csp: string): NextResponse {
+function applySecurity(res: NextResponse, csp: string, httpsMode: boolean): NextResponse {
   res.headers.set("Content-Security-Policy", csp);
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("X-Frame-Options", "DENY");
@@ -66,7 +92,7 @@ function applySecurity(res: NextResponse, csp: string): NextResponse {
   res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), interest-cohort=()");
   res.headers.set("X-DNS-Prefetch-Control", "off");
   // HSTS only makes sense (and is only honoured) over https.
-  if (process.env.COOKIE_SECURE !== "false") {
+  if (httpsMode) {
     res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   }
   return res;

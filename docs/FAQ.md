@@ -14,6 +14,14 @@ A free, open-source (MIT) **community** project — not an official WiiM/LinkPla
 ## Do I need Docker? A reverse proxy?
 **Docker: yes** — but it's one command (see the [Easy install guide](EASY-INSTALL.md)). **Reverse proxy: no** — that's optional, only if you want to reach it from *outside* your home over HTTPS. On your home network you just open it by IP.
 
+## My browser says `SSL_ERROR_RX_RECORD_TOO_LONG` / refuses to connect (often on Linux)
+That error means the **browser** tried HTTPS against the dashboard, which serves plain **HTTP** — there is no certificate involved on our side, so nothing to install or trust. Two usual causes:
+
+1. **The browser silently upgraded the address.** Firefox's *HTTPS-Only Mode* and Chromium's *Always use secure connections* rewrite `http://…` to `https://…`, and recent Linux builds ship them on by default (which is why the same URL works from Windows or a phone). Either open the page and choose *Continue to HTTP Site*, or add an exception: Firefox → Settings → Privacy & Security → **HTTPS-Only Mode** → *Don't enable* (or "Manage exceptions"); Chromium → Settings → Privacy and security → Security → turn off **Always use secure connections**.
+2. **You typed `https://` yourself.** Use `http://<server-ip>:<port>` — e.g. `http://192.168.1.50:39446`.
+
+Want real HTTPS? Put a reverse proxy (Zoraxy / Caddy / Nginx Proxy Manager / Traefik) in front of it — that's the supported way, see [Public access / reverse proxy](../README.md#public-access--reverse-proxy). Also make sure `COOKIE_SECURE` isn't claiming something untrue: as of 0.3.17 the dashboard decides the HSTS / `upgrade-insecure-requests` headers from the actual request scheme, so a mistyped value can no longer force https headers onto a plain-http install.
+
 ## Which devices are supported?
 Any WiiM / LinkPlay device with the `httpapi.asp` HTTP API: WiiM **Mini, Pro, Pro Plus, Ultra**, **Amp / Amp Pro / Amp Ultra**, and many LinkPlay OEM streamers. Features are detected per device, so unsupported cards are simply hidden. (Non-networked accessories like the passive **Vibelink Amp** can't be controlled — pair them with a streamer.)
 
