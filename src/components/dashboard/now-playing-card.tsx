@@ -174,6 +174,10 @@ export function NowPlayingCard({
       });
   }, [player.title, player.artist, canLove]);
 
+  // Identifies the track for the per-track lyric-timing nudge (localStorage).
+  const lyricsKey =
+    player.artist && player.title ? `${player.artist}|${player.title}`.toLowerCase() : null;
+
   // Fetch lyrics (LRCLIB) when the lyrics view is open (card or kiosk); per track.
   const lyricsWanted =
     (view === "lyrics" || (kiosk && kioskView === "lyrics")) && !!player.title && !!player.artist;
@@ -314,6 +318,7 @@ export function NowPlayingCard({
               plain={lyrics?.plain ?? null}
               position={pos}
               loading={lyricsLoading}
+              trackKey={lyricsKey}
               onSeek={(t) => {
                 const v = Math.round(t);
                 setPos(v);
@@ -627,6 +632,7 @@ export function NowPlayingCard({
           lines={lyrics?.synced ?? null}
           plain={lyrics?.plain ?? null}
           lyricsLoading={lyricsLoading}
+          lyricsKey={lyricsKey}
           position={pos}
           onSeek={(t) => {
             const v = Math.round(t);

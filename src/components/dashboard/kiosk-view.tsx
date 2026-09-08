@@ -36,6 +36,7 @@ export function KioskView({
   lines,
   plain,
   lyricsLoading,
+  lyricsKey,
   position,
   onSeek,
 }: {
@@ -57,6 +58,7 @@ export function KioskView({
   lines: LyricLine[] | null;
   plain: string | null;
   lyricsLoading: boolean;
+  lyricsKey: string | null;
   position: number;
   onSeek: (t: number) => void;
 }) {
@@ -188,6 +190,7 @@ export function KioskView({
             position={position}
             loading={lyricsLoading}
             onSeek={onSeek}
+            trackKey={lyricsKey}
             large
             sizeClass="h-[60vh] w-full max-w-[600px]"
           />
