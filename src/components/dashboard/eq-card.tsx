@@ -263,21 +263,31 @@ function PeqRow({
   const gainNA = PEQ_GAIN_INDEPENDENT_MODES.has(band.mode); // low/high-pass: device ignores gain
   const modeLabel = PEQ_MODES.find((m) => m.value === band.mode)?.label ?? "Peak";
 
+  // An "Off" band keeps its type picker at full strength — that button is how you
+  // switch the band on — and dims only the values it isn't using yet. Dimming the
+  // whole row made bands the firmware ships as Off (k/l on 12-band firmware) look
+  // broken rather than available.
   return (
-    <div
-      className={cn(
-        "grid grid-cols-[1.6rem_1fr_3rem_minmax(5rem,1fr)_2.6rem] items-center gap-2",
-        off && "opacity-45",
-      )}
-    >
-      <span className="text-center text-xs font-semibold uppercase text-primary">{band.letter}</span>
+    <div className="grid grid-cols-[1.6rem_1fr_3rem_minmax(5rem,1fr)_2.6rem] items-center gap-2">
+      <span
+        className={cn(
+          "text-center text-xs font-semibold uppercase",
+          off ? "text-muted-foreground" : "text-primary",
+        )}
+      >
+        {band.letter}
+      </span>
 
-      <div className="flex items-center gap-1.5">
+      <div className={cn("flex items-center gap-1.5", off && "[&_input]:opacity-50")}>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild disabled={readOnly}>
             <button
               disabled={readOnly}
-              className="focus-ring rounded-lg bg-white/[0.04] px-2 py-1 text-xs enabled:hover:bg-white/[0.08] disabled:cursor-default"
+              title={off ? "Off — pick a filter type to use this band" : modeLabel}
+              className={cn(
+                "focus-ring rounded-lg px-2 py-1 text-xs enabled:hover:bg-white/[0.08] disabled:cursor-default",
+                off ? "bg-white/[0.06] text-muted-foreground" : "bg-white/[0.04]",
+              )}
             >
               {modeLabel}
             </button>
@@ -321,7 +331,10 @@ function PeqRow({
           const q = Number(e.target.value);
           if (Number.isFinite(q) && q !== band.q) set({ q });
         }}
-        className="h-7 w-full rounded-lg border border-border bg-input px-1.5 text-center text-xs tabular-nums focus:border-primary focus:outline-none disabled:opacity-60"
+        className={cn(
+          "h-7 w-full rounded-lg border border-border bg-input px-1.5 text-center text-xs tabular-nums focus:border-primary focus:outline-none disabled:opacity-60",
+          off && "opacity-50",
+        )}
         aria-label={`Band ${band.letter} Q`}
       />
 
@@ -341,8 +354,10 @@ function PeqRow({
         }}
         aria-label={`Band ${band.letter} gain`}
       />
-      <span className="text-right text-xs tabular-nums text-muted-foreground">
-        {gainNA ? "—" : gain > 0 ? `+${gain}` : gain}
+      <span
+        className={cn("text-right text-xs tabular-nums text-muted-foreground", off && "opacity-50")}
+      >
+        {gainNA || off ? "—" : gain > 0 ? `+${gain}` : gain}
       </span>
     </div>
   );
