@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.3.17] — 2026-09-08
+## [0.3.17] — 2026-09-09
 
 ### Added
 - **12-band parametric EQ where the firmware has it** — the band list now follows what the device actually answers with (`a`–`j` = 10 bands, `a`–`l` = 12 on WiiM's mid-2026 firmware) instead of a hardcoded 10, and the API validation accepts the new letters. It never renders *fewer* than 10, so a sparse read can't make a band disappear. Read *and* write confirmed on a WiiM Ultra, including the new k/l bands.
