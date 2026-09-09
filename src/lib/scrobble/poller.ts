@@ -2,6 +2,8 @@ import "server-only";
 import { listDevices } from "@/lib/db/devices";
 import { getLastfm } from "@/lib/db/settings";
 import { fetchPlayerStatus, fetchMetaInfo } from "@/lib/wiim/commands";
+import { fetchGetInfoEx } from "@/lib/wiim/upnp";
+import { isScrobbleEligible } from "./eligibility";
 import * as lastfm from "@/lib/lastfm/client";
 
 /**
@@ -70,11 +72,23 @@ async function tick(): Promise<void> {
 
 async function processDevice(id: string, host: string, creds: lastfm.LastfmCreds): Promise<void> {
   const p = await fetchPlayerStatus(host);
+
+  // For network/cast sources the HTTP API is not enough: its `status` sticks on
+  // "stop" for DLNA/cast pushes (Plex) and is incomplete on some OEM boxes, and
+  // its position can stay at 0 — so the scrobbler used to skip those plays
+  // entirely, even though the dashboard displayed them correctly. Take the
+  // honest transport state (and any missing metadata/timing) from UPnP
+  // GetInfoEx, exactly as the dashboard snapshot does. Unavailable ⇒ unchanged.
+  const info = p.sourceKey === "wifi" ? await fetchGetInfoEx(host).catch(() => null) : null;
+  if (info?.state) p.state = info.state;
+  if (p.position <= 0 && info && info.position > 0) p.position = info.position;
+  if (p.duration <= 0 && info && info.duration > 0) p.duration = info.duration;
+
   if (p.state !== "playing") return;
 
-  let title = p.title;
-  let artist = p.artist;
-  let album = p.album;
+  let title = p.title ?? info?.title ?? null;
+  let artist = p.artist ?? info?.artist ?? null;
+  let album = p.album ?? info?.album ?? null;
   if (!title || !artist) {
     // e.g. Bluetooth — metadata arrives via getMetaInfo (AVRCP), not getPlayerStatusEx.
     const meta = await fetchMetaInfo(host);
@@ -115,13 +129,12 @@ async function processDevice(id: string, host: string, creds: lastfm.LastfmCreds
   if (p.duration > 0) prev.duration = p.duration;
 
   if (!prev.scrobbled) {
-    // Known duration (streaming): half the track or 4 min. Unknown duration
-    // (e.g. Bluetooth reports no position/length): fall back to wall-clock —
-    // ~90s of continuous play of the same track.
-    const eligible =
-      prev.duration > 30
-        ? p.position >= Math.min(prev.duration / 2, 240)
-        : nowSec - prev.startedAt >= 90;
+    // See eligibility.ts for the rule and the device realities behind it.
+    const eligible = isScrobbleEligible({
+      duration: prev.duration,
+      position: p.position,
+      playedSec: nowSec - prev.startedAt,
+    });
     if (eligible) {
       prev.scrobbled = true; // mark first to avoid double-submit on overlap
       try {
