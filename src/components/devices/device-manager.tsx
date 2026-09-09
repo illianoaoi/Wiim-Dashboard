@@ -76,6 +76,8 @@ export function DeviceManager({ initialDevices }: { initialDevices: DeviceListIt
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editHostId, setEditHostId] = useState<string | null>(null);
+  const [editHost, setEditHost] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const [labelEditId, setLabelEditId] = useState<string | null>(null);
@@ -162,6 +164,31 @@ export function DeviceManager({ initialDevices }: { initialDevices: DeviceListIt
       await mutate();
     } catch (e) {
       toast((e as ApiError).message || "Remove failed", "error");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  /**
+   * Change a device's address. Router DHCP hands WiiM devices a new IP often
+   * enough that this is the difference between "the dashboard is broken" and a
+   * ten-second fix. The stored capabilities were probed at the OLD address, so
+   * re-probe afterwards — best-effort, since the device may still be settling.
+   */
+  async function saveHost(id: string) {
+    const h = editHost.trim();
+    if (!h) return;
+    setBusyId(id);
+    try {
+      await apiSend(`/api/devices/${id}`, "PATCH", { host: h });
+      setEditHostId(null);
+      await apiSend(`/api/devices/${id}/refresh`, "POST").catch(() => {
+        /* the address is saved; capabilities refresh on the next Refresh tap */
+      });
+      await mutate();
+      toast(`Address updated to ${h}`, "success");
+    } catch (e) {
+      toast((e as ApiError).message || "Could not update the address", "error");
     } finally {
       setBusyId(null);
     }
@@ -328,9 +355,53 @@ export function DeviceManager({ initialDevices }: { initialDevices: DeviceListIt
                       </button>
                     </div>
                   )}
-                  <p className="truncate text-xs text-muted-foreground">
-                    {d.info?.model ?? "WiiM"} · {d.host}
-                  </p>
+                  {editHostId === d.id ? (
+                    <div className="mt-1 flex items-center gap-2">
+                      <Input
+                        value={editHost}
+                        onChange={(e) => setEditHost(e.target.value)}
+                        className="h-9"
+                        autoFocus
+                        placeholder="192.168.1.50"
+                        aria-label="Device IP address"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void saveHost(d.id);
+                          if (e.key === "Escape") setEditHostId(null);
+                        }}
+                      />
+                      <button
+                        onClick={() => void saveHost(d.id)}
+                        className="grid size-9 place-items-center rounded-xl text-success hover:bg-white/8"
+                        aria-label="Save address"
+                      >
+                        <Check className="size-5" />
+                      </button>
+                      <button
+                        onClick={() => setEditHostId(null)}
+                        className="grid size-9 place-items-center rounded-xl text-muted-foreground hover:bg-white/8"
+                        aria-label="Cancel"
+                      >
+                        <X className="size-5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                      <span className="truncate">
+                        {d.info?.model ?? "WiiM"} · {d.host}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setEditHostId(d.id);
+                          setEditHost(d.host);
+                        }}
+                        className="shrink-0 transition hover:text-foreground"
+                        aria-label="Change IP address"
+                        title="Change IP address"
+                      >
+                        <Pencil className="size-3" />
+                      </button>
+                    </p>
+                  )}
                   <CapChips caps={d.capabilities} />
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
